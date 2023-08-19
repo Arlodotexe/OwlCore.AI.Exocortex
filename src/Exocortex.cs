@@ -6,12 +6,32 @@ using System.Threading.Tasks;
 namespace OwlCore.AI.Exocortex;
 
 /// <summary>
-/// Represents the Exocortex - a memory processing unit.
+/// Represents the Exocortex, a generative rememberance agent that mimics the human brain's memory recall and consolidation processes.
 /// </summary>
+/// <remarks>
+/// The Exocortex manages a collection of memories, each represented by embedding vectors, importance scores, and creation timestamps.
+/// <para/>
+/// It continually reframes and consolidates old memories in light of new experiences, updating the context and interpretation of past events without overwriting the original memories.
+/// This process resembles how recalling a human memory can change the way it is remembered and how the act of recalling can become a new memory itself.
+/// <para/>
+/// Memories in the Exocortex are subject to decay over time (recency), modeled as an exponential decay function. This reflects the human tendency
+/// to recall recent memories more vividly than distant ones.
+/// <para/>
+/// The Exocortex uses a sophisticated mechanism to assign importance to memories, distinguishing significant experiences from mundane events,
+/// akin to how the human mind assigns emotional weight to different memories.
+/// <para/>
+/// Each new memory is compared (using cosine similarity between embedding vectors) to existing memories to establish relevance. This emulates how
+/// human memory retrieval is often triggered by related events or thoughts.
+/// <para/>
+/// This class is designed to interact with different types of memory (e.g., text, audio, visual), making it adaptable for various applications.
+/// </remarks>
 /// <typeparam name="T">The type of raw content the memories hold.</typeparam>
 public abstract class Exocortex<T>
 {
-    private List<Memory<T>> _memories = new List<Memory<T>>();
+    /// <summary>
+    /// All memories created by the agent, in the order they were created.
+    /// </summary>
+    public SortedSet<Memory<T>> Memories { get; } = new SortedSet<Memory<T>>();
 
     /// <summary>
     /// Gets or sets the decay factor for memory recency computations.
@@ -90,7 +110,7 @@ public abstract class Exocortex<T>
         var subjectiveMemory = new Memory<T>(newMemoryContent, rawMemoryEmbedding, objectiveNewMemoryImportance, currentRelevance);
 
         // Store subjective memory
-        _memories.Add(subjectiveMemory);
+        Memories.Add(subjectiveMemory);
 
         // Find memories related to the subjective version of this memory.
         var subjectiveRecollections = WeightedMemoryRecall(subjectiveMemory.EmbeddingVector);
@@ -110,7 +130,7 @@ public abstract class Exocortex<T>
                 CreationTimestamp = DateTime.Now,
             };
 
-            _memories.Add(reframedMemory);
+            Memories.Add(reframedMemory);
         }
 
         // Consolidate into a "fully formed thought" in light of the (now) subjectively re-evaluated related memories
@@ -132,7 +152,7 @@ public abstract class Exocortex<T>
         };
 
         // Store the consolidated memory
-        _memories.Add(consolidatedMemory);
+        Memories.Add(consolidatedMemory);
     }
 
     /// <summary>
@@ -142,7 +162,7 @@ public abstract class Exocortex<T>
     /// <returns>An ordered set of memories, ranked by relevance, importance, and recency.</returns>
     public IEnumerable<Memory<T>> WeightedMemoryRecall(double[] embedding)
     {
-        return _memories.Select(memory =>
+        return Memories.Select(memory =>
         {
             var relevance = ComputeCosineSimilarity(embedding, memory.EmbeddingVector);
             var recency = ComputeRecencyScore(memory.CreationTimestamp);
