@@ -6,7 +6,7 @@ namespace OwlCore.AI.Exocortex;
 /// Represents a single memory in the exocortex, with content and associated metadata.
 /// </summary>
 /// <typeparam name="T">The type of content this memory holds.</typeparam>
-public record Memory<T>
+public record CortexMemory<T>
 {
     /// <summary>
     /// Represents a single memory in the exocortex, with content and associated metadata.
@@ -15,7 +15,7 @@ public record Memory<T>
     /// <param name="embeddingVector">The vectorized embeddings that represent this memory.</param>
     /// <param name="currentImportance">The importance of this memory temporal continuity to when it was created.</param>
     /// <param name="currentRelevance">The relevance of this memory with temporal continuity to when it was created.</param>
-    public Memory(T content, double[] embeddingVector, double currentImportance, double currentRelevance)
+    public CortexMemory(T content, double[] embeddingVector, double currentImportance, double currentRelevance)
     {
         Content = content;
         EmbeddingVector = embeddingVector;

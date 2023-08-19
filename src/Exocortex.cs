@@ -31,7 +31,7 @@ public abstract class Exocortex<T>
     /// <summary>
     /// All memories created by the agent, in the order they were created.
     /// </summary>
-    public SortedSet<Memory<T>> Memories { get; } = new SortedSet<Memory<T>>();
+    public SortedSet<CortexMemory<T>> Memories { get; } = new SortedSet<CortexMemory<T>>();
 
     /// <summary>
     /// Gets or sets the decay factor for memory recency computations.
@@ -42,7 +42,7 @@ public abstract class Exocortex<T>
     /// <summary>
     /// Defines how the Exocortex should react to new content and related memories.
     /// </summary>
-    public abstract Task<T> ExperienceTickAsync(T newContent, IEnumerable<Memory<T>> relatedMemories, double importanceToRelatedMemories);
+    public abstract Task<T> ExperienceTickAsync(T newContent, IEnumerable<CortexMemory<T>> relatedMemories, double importanceToRelatedMemories);
 
     /// <summary>
     /// Generates an embedding vector for a given memory content.
@@ -59,7 +59,7 @@ public abstract class Exocortex<T>
     /// <param name="memoryContent">The content to generate an importance score for.</param>
     /// <param name="relatedMemories">The memories related to the given content.</param>
     /// <returns>The calculated importance score.</returns>
-    public abstract Task<double> GenerateImportanceScore(T memoryContent, IEnumerable<Memory<T>> relatedMemories);
+    public abstract Task<double> GenerateImportanceScore(T memoryContent, IEnumerable<CortexMemory<T>> relatedMemories);
 
     /// <summary>
     /// Computes the cosine similarity between two vectors.
@@ -107,7 +107,7 @@ public abstract class Exocortex<T>
         var currentRelevance = ComputeCosineSimilarity(subjectiveEmbedding, rawMemoryEmbedding);
 
         // Create new memory with the subject interpretation of objective experience.
-        var subjectiveMemory = new Memory<T>(newMemoryContent, rawMemoryEmbedding, objectiveNewMemoryImportance, currentRelevance);
+        var subjectiveMemory = new CortexMemory<T>(newMemoryContent, rawMemoryEmbedding, objectiveNewMemoryImportance, currentRelevance);
 
         // Store subjective memory
         Memories.Add(subjectiveMemory);
@@ -125,7 +125,7 @@ public abstract class Exocortex<T>
             var reframedContent = await ExperienceTickAsync(memory.Content, subjectiveRecollections, importanceToRelatedMemories: subjectiveRecalledMemoryImportance);
             var reframedEmbedding = GenerateEmbedding(reframedContent);
 
-            var reframedMemory = new Memory<T>(reframedContent, reframedEmbedding, subjectiveRecalledMemoryImportance, currentRelevance)
+            var reframedMemory = new CortexMemory<T>(reframedContent, reframedEmbedding, subjectiveRecalledMemoryImportance, currentRelevance)
             {
                 CreationTimestamp = DateTime.Now,
             };
@@ -146,7 +146,7 @@ public abstract class Exocortex<T>
         var insightMemoryEmbedding = GenerateEmbedding(insightMemoryContent);
         var insightMemoryImportance = await GenerateImportanceScore(insightMemoryContent, insightGuidedRecollections);
 
-        var consolidatedMemory = new Memory<T>(insightMemoryContent, insightMemoryEmbedding, insightMemoryImportance, currentRelevance)
+        var consolidatedMemory = new CortexMemory<T>(insightMemoryContent, insightMemoryEmbedding, insightMemoryImportance, currentRelevance)
         {
             CreationTimestamp = DateTime.Now,
         };
@@ -160,7 +160,7 @@ public abstract class Exocortex<T>
     /// </summary>
     /// <param name="embedding">The embeddings for this content, if available.</param>
     /// <returns>An ordered set of memories, ranked by relevance, importance, and recency.</returns>
-    public IEnumerable<Memory<T>> WeightedMemoryRecall(double[] embedding)
+    public IEnumerable<CortexMemory<T>> WeightedMemoryRecall(double[] embedding)
     {
         return Memories.Select(memory =>
         {
