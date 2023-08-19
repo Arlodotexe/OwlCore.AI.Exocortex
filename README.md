@@ -11,6 +11,7 @@ The creation of an Exocortex is part of a larger exploration into the "Symbiosis
 **Privacy**: First priority, never to be undermined. All computation should be performed on-device. The exact AI model used should be swappable by the end user. Users should be able to create separate exocortexes for work and personal life, with the option to combine them together.
 
 ### Memory Stream Architecture
+The memory stream is highly inspired by that in "Generative Agents: Interactive Simulacra of Human Behavior", but with some small changes and big additions. 
 
 - **Initial Memory Values**: 
     - **Recency**: Each new memory is timestamped upon creation. Recency decays over time, using an exponential decay function (e.g., decay factor of 0.995) based on the number of hours since the memory was last retrieved.
