@@ -39,7 +39,7 @@ public abstract class Exocortex<T>
     /// <param name="memoryContent">The content to generate an importance score for.</param>
     /// <param name="relatedMemories">The memories related to the given content.</param>
     /// <returns>The calculated importance score.</returns>
-    public abstract double GenerateImportanceScore(T memoryContent, IEnumerable<Memory<T>> relatedMemories);
+    public abstract Task<double> GenerateImportanceScore(T memoryContent, IEnumerable<Memory<T>> relatedMemories);
 
     /// <summary>
     /// Computes the cosine similarity between two vectors.
@@ -77,7 +77,7 @@ public abstract class Exocortex<T>
         // Recall memories related to this new content
         var rawMemoryEmbedding = GenerateEmbedding(newMemoryContent);
         var recollections = WeightedMemoryRecall(rawMemoryEmbedding);
-        var objectiveNewMemoryImportance = GenerateImportanceScore(newMemoryContent, recollections);
+        var objectiveNewMemoryImportance = await GenerateImportanceScore(newMemoryContent, recollections);
 
         // Interpret raw objective experience + related recollections + calculated objective importance
         var subjectiveTick = await ExperienceTickAsync(newMemoryContent, recollections, objectiveNewMemoryImportance);
@@ -99,7 +99,7 @@ public abstract class Exocortex<T>
         foreach (var memory in recollections)
         {
             // How important is this recalled memory in light of the new memory?
-            var subjectiveRecalledMemoryImportance = GenerateImportanceScore(memory.Content, subjectiveRecollections);
+            var subjectiveRecalledMemoryImportance = await GenerateImportanceScore(memory.Content, subjectiveRecollections);
 
             // Interpret past memory + recollections about the new memory + newly calculated subjective importance.
             var reframedContent = await ExperienceTickAsync(memory.Content, subjectiveRecollections, importanceToRelatedMemories: subjectiveRecalledMemoryImportance);
@@ -119,12 +119,12 @@ public abstract class Exocortex<T>
         var insightGuidedRecollections = WeightedMemoryRecall(subjectiveMemory.EmbeddingVector);
 
         // How subjectively important is this new memory in light of new insights?
-        var insightGuidedSubjectiveMemoryImportance = GenerateImportanceScore(subjectiveMemory.Content, insightGuidedRecollections);
+        var insightGuidedSubjectiveMemoryImportance = await GenerateImportanceScore(subjectiveMemory.Content, insightGuidedRecollections);
 
         // Create final memory based on previous subjective experience.
         var insightMemoryContent = await ExperienceTickAsync(subjectiveMemory.Content, subjectiveRecollections, insightGuidedSubjectiveMemoryImportance);
         var insightMemoryEmbedding = GenerateEmbedding(insightMemoryContent);
-        var insightMemoryImportance = GenerateImportanceScore(insightMemoryContent, insightGuidedRecollections);
+        var insightMemoryImportance = await GenerateImportanceScore(insightMemoryContent, insightGuidedRecollections);
 
         var consolidatedMemory = new Memory<T>(insightMemoryContent, insightMemoryEmbedding, insightMemoryImportance, currentRelevance)
         {
