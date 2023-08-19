@@ -19,11 +19,11 @@
 		<Description></Description>
 		<PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
 		<PackageIcon>logo.png</PackageIcon>
-		<PackageProjectUrl>https://github.com/Arlodotexe/OwlCore.Template</PackageProjectUrl>
+		<PackageProjectUrl>https://github.com/Arlodotexe/OwlCore.AI.Exocortex</PackageProjectUrl>
 		<PackageReleaseNotes>
 --- 0.0.0 ---
 [New]
-Initial release of OwlCore.Template.
+Initial release of OwlCore.AI.Exocortex.
 		</PackageReleaseNotes>
 		<DebugType>embedded</DebugType>
 		<NeutralLanguage>en</NeutralLanguage>

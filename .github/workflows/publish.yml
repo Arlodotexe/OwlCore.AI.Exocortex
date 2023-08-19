@@ -21,5 +21,5 @@ jobs:
     - name: Build
       run: dotnet build --no-restore -p:Configuration=Release
     - name: Publish to NuGet
-      run: dotnet nuget push "/home/runner/work/OwlCore.Template/OwlCore.Template/src/bin/Release/OwlCore.Template.*.*.*.nupkg" --skip-duplicate --api-key ${{secrets.NUGET_KEY}} --source https://api.nuget.org/v3/index.json
+      run: dotnet nuget push "/home/runner/work/OwlCore.AI.Exocortex/OwlCore.AI.Exocortex/src/bin/Release/OwlCore.AI.Exocortex.*.*.*.nupkg" --skip-duplicate --api-key ${{secrets.NUGET_KEY}} --source https://api.nuget.org/v3/index.json
       
