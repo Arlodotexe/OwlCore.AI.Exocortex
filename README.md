@@ -1,4 +1,4 @@
-# OwlCore.AI.Exocortex [![Version](https://img.shields.io/nuget/v/OwlCore.Template.svg)](https://www.nuget.org/packages/OwlCore.AI.Exocortex)
+# OwlCore.AI.Exocortex [![Version](https://img.shields.io/nuget/v/OwlCore.AI.Exocortex.svg)](https://www.nuget.org/packages/OwlCore.AI.Exocortex)
 The creation of an Exocortex is part of a larger exploration into the "Symbiosis of Artificial and Human Intelligence"[^3].
 
 ## **An Echo of Experiences**
