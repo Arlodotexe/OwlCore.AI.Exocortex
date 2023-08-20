@@ -4,7 +4,7 @@ The creation of an Exocortex is part of a larger exploration into the "Symbiosis
 ## **An Echo of Experiences**
 **Definition**: The Exocortex is a **remembrance agent**, a generative agent specialized in remembering a narrative of observed events.
 
-**Vision**: A timestamped and vectorized timeline of experiences and notes. Key to this vision is the concept of the memory stream, a dynamic entity that evolves with new experiences. It's designed to provide a sense of continuity, using time-ranked retrieval of related memories to provide context for new experiences.
+**Vision**: A timestamped and vectorized timeline of experiences and notes. Key to this vision is the concept of the memory stream, a dynamic entity that evolves with new experiences. It's designed to provide a sense of continuity, using careful retrieval of related memories to provide an ongoing context for new experiences.
 
 **Enhancing communication**: The immediate application and likely testing grounds will be to create a timeline of real events and notes in a specific domain to create a basic prototype, with the aim to identify and eliminate communication bottlenecks. Through this, constructs can collaborate or exchange knowledge and experiences autonomously.
 
