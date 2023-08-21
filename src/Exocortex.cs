@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace OwlCore.AI.Exocortex;
@@ -34,32 +35,59 @@ public abstract class Exocortex<T>
     public SortedSet<CortexMemory<T>> Memories { get; } = new SortedSet<CortexMemory<T>>();
 
     /// <summary>
-    /// Gets or sets the decay factor for memory recency computations.
-    /// Used to model how quickly a memory fades over time.
+    /// Gets or sets the number of past memories to reframe in light of a new memory.
     /// </summary>
-    public double MemoryDecayFactor { get; private set; } = 0.995;
+    public int ThoughtDepth { get; set; } = 6;
 
     /// <summary>
-    /// Defines how the Exocortex should react to new content and related memories.
+    /// Gets or sets the number of related memories to recall for context when reframing a memory.
     /// </summary>
-    public abstract Task<T> ExperienceTickAsync(T newContent, IEnumerable<CortexMemory<T>> relatedMemories, double importanceToRelatedMemories);
+    public int ThoughtBreadth { get; set; } = 6;
+
+    /// <summary>
+    /// Gets or sets a boolean value that indicates if <see cref="ThoughtBreadth"/> is adjust automatically based on the average relevance of the top 10 memories.
+    /// </summary>
+    public bool AutoAdjustThoughtBreadth { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets a boolean value that indicates if <see cref="ThoughtDepth"/> is adjust automatically based on the average relevance of the top 10 memories.
+    /// </summary>
+    public bool AutoAdjustThoughtDepth { get; set; } = false;
+
+    /// <summary>
+    /// The maximum depth of <see cref="ThoughtDepth"/>.
+    /// </summary>
+    public int ThoughtDepthMax { get; set; } = 6;
+
+    /// <summary>
+    /// The maximum Breadth of <see cref="ThoughtBreadth"/>.
+    /// </summary>
+    public int ThoughtBreadthMax { get; set; } = 6;
+
+    /// <summary>
+    /// Defines how the Exocortex should rewrite memories under the context of related memories.
+    /// </summary>
+    /// <param name="memory">The raw memory being experienced.</param>
+    /// <param name="relatedMemories">The memories related to this new experience.</param>
+    /// <param name="cancellationToken">A token that can be used to cancel the ongoing operation.</param>
+    public abstract Task<T> SummarizeMemoryInNewContext(CortexMemory<T> memory, IEnumerable<CortexMemory<T>> relatedMemories, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Defines how the Exocortex reacts to the train of thought spawned by a memory.
+    /// </summary>
+    /// <param name="memory">The raw memory being experienced.</param>
+    /// <param name="relatedMemories">The memories related to this new experience.</param>
+    /// <param name="cancellationToken">A token that can be used to cancel the ongoing operation.</param>
+    public abstract Task<T> ReactToMemoryAsync(CortexMemory<T> memory, IEnumerable<CortexMemory<T>> relatedMemories, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Generates an embedding vector for a given memory content.
     /// Used for computing similarities between memories.
     /// </summary>
     /// <param name="memoryContent">The content to generate an embedding for.</param>
+    /// <param name="cancellationToken">A token that can be used to cancel the ongoing operation.</param>
     /// <returns>A vector representing the content.</returns>
-    public abstract double[] GenerateEmbedding(T memoryContent);
-
-    /// <summary>
-    /// Generates an importance score for a given memory content.
-    /// This score reflects how critical or poignant the memory is.
-    /// </summary>
-    /// <param name="memoryContent">The content to generate an importance score for.</param>
-    /// <param name="relatedMemories">The memories related to the given content.</param>
-    /// <returns>The calculated importance score.</returns>
-    public abstract Task<double> GenerateImportanceScore(T memoryContent, IEnumerable<CortexMemory<T>> relatedMemories);
+    public abstract Task<double[]> GenerateEmbeddingAsync(T memoryContent, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Computes the cosine similarity between two vectors.
@@ -83,7 +111,14 @@ public abstract class Exocortex<T>
     public double ComputeRecencyScore(DateTime creationTimestamp)
     {
         var timeSpanSinceCreation = DateTime.Now - creationTimestamp;
-        var recencyScore = Math.Pow(MemoryDecayFactor, timeSpanSinceCreation.TotalHours);
+        var minutesSinceCreation = timeSpanSinceCreation.TotalMinutes;
+
+        // Parameters for the logistic function
+        double x0 = 1;  // Midpoint of the curve (in minutes)
+        double k = 0.1;  // Steepness factor
+
+        // Logistic decay function
+        var recencyScore = 1 / (1 + Math.Exp(k * (minutesSinceCreation - x0)));
 
         return recencyScore;
     }
@@ -95,64 +130,73 @@ public abstract class Exocortex<T>
     public async Task AddMemoryAsync(T newMemoryContent)
     {
         // Recall memories related to this new content
-        var rawMemoryEmbedding = GenerateEmbedding(newMemoryContent);
+        var rawMemoryEmbedding = await GenerateEmbeddingAsync(newMemoryContent);
+
+        AdjustBreadthAndDepthBasedOnRelevance(rawMemoryEmbedding);
+
         var recollections = WeightedMemoryRecall(rawMemoryEmbedding);
-        var objectiveNewMemoryImportance = await GenerateImportanceScore(newMemoryContent, recollections);
-
-        // Interpret raw objective experience + related recollections + calculated objective importance
-        var subjectiveTick = await ExperienceTickAsync(newMemoryContent, recollections, objectiveNewMemoryImportance);
-        var subjectiveEmbedding = GenerateEmbedding(subjectiveTick);
-
-        // Extract relevance distance between subjective and objective experience.
-        var currentRelevance = ComputeCosineSimilarity(subjectiveEmbedding, rawMemoryEmbedding);
-
-        // Create new memory with the subject interpretation of objective experience.
-        var subjectiveMemory = new CortexMemory<T>(newMemoryContent, rawMemoryEmbedding, objectiveNewMemoryImportance, currentRelevance);
-
-        // Store subjective memory
-        Memories.Add(subjectiveMemory);
-
-        // Find memories related to the subjective version of this memory.
-        var subjectiveRecollections = WeightedMemoryRecall(subjectiveMemory.EmbeddingVector);
-
-        // Remember the act of recalling these memories subjectively
-        foreach (var memory in recollections)
-        {
-            // How important is this recalled memory in light of the new memory?
-            var subjectiveRecalledMemoryImportance = await GenerateImportanceScore(memory.Content, subjectiveRecollections);
-
-            // Interpret past memory + recollections about the new memory + newly calculated subjective importance.
-            var reframedContent = await ExperienceTickAsync(memory.Content, subjectiveRecollections, importanceToRelatedMemories: subjectiveRecalledMemoryImportance);
-            var reframedEmbedding = GenerateEmbedding(reframedContent);
-
-            var reframedMemory = new CortexMemory<T>(reframedContent, reframedEmbedding, subjectiveRecalledMemoryImportance, currentRelevance)
-            {
-                CreationTimestamp = DateTime.Now,
-            };
-
-            Memories.Add(reframedMemory);
-        }
-
-        // Consolidate into a "fully formed thought" in light of the (now) subjectively re-evaluated related memories
-        // Recency weightes ensure recent recollections are prioritized over old ones.
-        // Relevance weights ensure we can filter through large volumes of incoming information.
-        var insightGuidedRecollections = WeightedMemoryRecall(subjectiveMemory.EmbeddingVector);
-
-        // How subjectively important is this new memory in light of new insights?
-        var insightGuidedSubjectiveMemoryImportance = await GenerateImportanceScore(subjectiveMemory.Content, insightGuidedRecollections);
-
-        // Create final memory based on previous subjective experience.
-        var insightMemoryContent = await ExperienceTickAsync(subjectiveMemory.Content, subjectiveRecollections, insightGuidedSubjectiveMemoryImportance);
-        var insightMemoryEmbedding = GenerateEmbedding(insightMemoryContent);
-        var insightMemoryImportance = await GenerateImportanceScore(insightMemoryContent, insightGuidedRecollections);
-
-        var consolidatedMemory = new CortexMemory<T>(insightMemoryContent, insightMemoryEmbedding, insightMemoryImportance, currentRelevance)
+        var newMemory = new CortexMemory<T>(newMemoryContent, rawMemoryEmbedding)
         {
             CreationTimestamp = DateTime.Now,
+            Type = CortexMemoryType.Core,
         };
 
-        // Store the consolidated memory
-        Memories.Add(consolidatedMemory);
+        Memories.Add(newMemory);
+
+        // Remember the act of recalling these memories, and roll reflections from one recollection to the next.
+        var allRelevantMemories = new Dictionary<DateTime, CortexMemory<T>>(recollections.ToDictionary(x => x.CreationTimestamp));
+
+        // Memory loop.
+        // Roughly emulates the act of remembering and reflecting on thoughts before responding.
+        // Context is rolled from the original memory, through a timeline of the most relevant and recent memories, and out into a "final thought".
+        foreach (var memory in recollections.OrderBy(x => x.CreationTimestamp).Take(ThoughtBreadth))
+        {
+            // Recall and deduplicate memories related to our recollections.
+            var relatedRecollections = WeightedMemoryRecall(memory.EmbeddingVector)
+                .Except(new[] { memory })
+                .OrderBy(x => x.CreationTimestamp)
+                .Take(ThoughtDepth);
+
+            foreach (var item in relatedRecollections)
+            {
+                if (allRelevantMemories.ContainsKey(item.CreationTimestamp))
+                    continue;
+
+                allRelevantMemories[item.CreationTimestamp] = item;
+            }
+        }
+
+        // Interpret past memory + recollections about the new memory
+        var relevantMemories = allRelevantMemories.Values
+            .Take(25)
+            .OrderBy(x => x.CreationTimestamp)
+            .ToArray();
+
+        var recollectionMemory = await SummarizeMemoryInNewContext(newMemory, relevantMemories);
+        var recollectionMemoryEmbedding = await GenerateEmbeddingAsync(recollectionMemory);
+
+        var memoryOfRecollection = new CortexMemory<T>(recollectionMemory, recollectionMemoryEmbedding)
+        {
+            CreationTimestamp = DateTime.Now,
+            Type = CortexMemoryType.RecalledWithContext,
+        };
+
+        allRelevantMemories.Add(memoryOfRecollection.CreationTimestamp, memoryOfRecollection);
+        Memories.Add(memoryOfRecollection);
+
+        // Create final reaction to the new memory, but with recent internal reflections.
+        // Recency weightes ensure recent recollections are prioritized over old ones.
+        // Relevance weights ensure we can filter through large volumes of incoming information.
+        var reaction = await ReactToMemoryAsync(newMemory, allRelevantMemories.Values.Take(25).OrderBy(x => x.CreationTimestamp));
+        var reactionEmbedding = await GenerateEmbeddingAsync(reaction);
+
+        var reactionMemory = new CortexMemory<T>(reaction, reactionEmbedding)
+        {
+            CreationTimestamp = DateTime.Now,
+            Type = CortexMemoryType.Reaction,
+        };
+
+        Memories.Add(reactionMemory);
     }
 
     /// <summary>
@@ -162,14 +206,44 @@ public abstract class Exocortex<T>
     /// <returns>An ordered set of memories, ranked by relevance, importance, and recency.</returns>
     public IEnumerable<CortexMemory<T>> WeightedMemoryRecall(double[] embedding)
     {
-        return Memories.Select(memory =>
-        {
-            var relevance = ComputeCosineSimilarity(embedding, memory.EmbeddingVector);
-            var recency = ComputeRecencyScore(memory.CreationTimestamp);
+        return Memories
+            .Select(memory =>
+            {
+                var relevance = ComputeCosineSimilarity(embedding, memory.EmbeddingVector);
+                var recency = ComputeRecencyScore(memory.CreationTimestamp);
 
-            return (Memory: memory, Score: relevance * memory.ImportanceOnCreation * recency);
-        })
-        .OrderByDescending(tuple => tuple.Score)
-        .Select(tuple => tuple.Memory);
+                return (Memory: memory, Score: relevance * recency * recency);
+            })
+            .OrderByDescending(tuple => tuple.Score)
+            .ThenByDescending(tuple => tuple.Memory.CreationTimestamp)
+            .Select(tuple => tuple.Memory);
+    }
+
+    public void AdjustBreadthAndDepthBasedOnRelevance(double[] embedding)
+    {
+        var topMemories = WeightedMemoryRecall(embedding).ToList();  // Take the top 10 memories
+
+        // If no memories are available, return without adjusting
+        if (!topMemories.Any())
+            return;
+
+        var averageRelevance = topMemories.Average(memory => ComputeCosineSimilarity(embedding, memory.EmbeddingVector));
+
+        if (averageRelevance > 0.8)  // High relevance threshold
+        {
+            if (AutoAdjustThoughtBreadth)
+                ThoughtBreadth = Math.Min(ThoughtBreadth + 1, ThoughtBreadthMax);  // Max limit
+
+            if (AutoAdjustThoughtDepth)
+                ThoughtDepth = Math.Min(ThoughtDepth + 1, ThoughtDepthMax);      // Max limit
+        }
+        else if (averageRelevance < 0.5)  // Low relevance threshold
+        {
+            if (AutoAdjustThoughtBreadth)
+                ThoughtBreadth = Math.Max(ThoughtBreadth - 1, 1);  // Min limit
+
+            if (AutoAdjustThoughtDepth)
+                ThoughtDepth = Math.Max(ThoughtDepth - 1, 1);      // Min limit
+        }
     }
 }

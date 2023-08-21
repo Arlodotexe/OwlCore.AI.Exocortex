@@ -6,22 +6,23 @@ namespace OwlCore.AI.Exocortex;
 /// Represents a single memory in the exocortex, with content and associated metadata.
 /// </summary>
 /// <typeparam name="T">The type of content this memory holds.</typeparam>
-public record CortexMemory<T>
+public record CortexMemory<T> : IComparable<CortexMemory<T>>
 {
     /// <summary>
     /// Represents a single memory in the exocortex, with content and associated metadata.
     /// </summary>
     /// <param name="content">The raw content of the memory.</param>
     /// <param name="embeddingVector">The vectorized embeddings that represent this memory.</param>
-    /// <param name="currentImportance">The importance of this memory temporal continuity to when it was created.</param>
-    /// <param name="currentRelevance">The relevance of this memory with temporal continuity to when it was created.</param>
-    public CortexMemory(T content, double[] embeddingVector, double currentImportance, double currentRelevance)
+    public CortexMemory(T content, double[] embeddingVector)
     {
         Content = content;
         EmbeddingVector = embeddingVector;
-        ImportanceOnCreation = currentImportance;
-        RelevanceOnCreation = currentRelevance;
     }
+
+    /// <summary>
+    /// The memory type.
+    /// </summary>
+    public CortexMemoryType Type { get; set; }
 
     /// <summary>
     /// Gets the content of the memory.
@@ -34,17 +35,19 @@ public record CortexMemory<T>
     public DateTime CreationTimestamp { get; init; } = DateTime.Now;
 
     /// <summary>
-    /// Gets or sets the importance of this memory when it was created.
-    /// </summary>
-    public double ImportanceOnCreation { get; init; }
-
-    /// <summary>
-    /// Gets or sets the relevance of this memory when it was created.
-    /// </summary>
-    public double RelevanceOnCreation { get; set; }
-
-    /// <summary>
     /// Gets the embedding vector representing the content of this memory.
     /// </summary>
     public double[] EmbeddingVector { get; init; }
+
+    /// <inheritdoc/>
+    public int CompareTo(CortexMemory<T> other)
+    {
+        return CreationTimestamp.CompareTo(other.CreationTimestamp);
+    }
+
+    /// <inheritdoc/>
+    public override string ToString()
+    {
+        return $"{CreationTimestamp}: {Content}";
+    }
 }
