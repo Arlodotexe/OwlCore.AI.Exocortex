@@ -197,7 +197,7 @@ public abstract partial class Exocortex<T>
 
         // Prioritize very recent memories
         var recentMemories = Memories
-            .OrderByDescending(m => m.CreationTimestamp)
+            .OrderByDescending(m => ComputeRecencyScore(m.CreationTimestamp))
             .Where(x => x.Type != CortexMemoryType.RecalledWithContext)
             .Take(10);
 
