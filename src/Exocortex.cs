@@ -105,7 +105,7 @@ public abstract partial class Exocortex<T>
     /// <summary>
     /// A value between 0 and 1 that indicates how similar the memories in a cluster are. The most recent memory in a cluster is always used.
     /// </summary>
-    public double MemoryClusterSimilarity { get; set; } = 0.6;
+    public double MemoryClusterSimilarity { get; set; } = 0.8;
 
     /// <summary>
     /// Defines how the Exocortex should rewrite memories under the context of related memories.
