@@ -13,7 +13,7 @@ Inspired by the paper "Generative Agents: Interactive Simulacra of Human Behavio
 
 **Enhancing communication**: The immediate application and likely testing grounds will be to create a timeline of real events and notes in a specific domain to create a basic prototype, with the aim to identify and eliminate communication bottlenecks. Through this, constructs can collaborate or exchange knowledge and experiences autonomously.
 
-**Privacy**: First priority, never to be undermined. All computation should be performed on-device. The exact AI model used should be swappable by the end user. Users should be able to create separate exocortexes for work and personal life, with the option to combine them together.
+**Privacy**: The exact AI model used should be swappable by the end user. Users should be able to create specialized or separated exocortexes for work and personal life.
 
 ### Memory Stream Architecture
 The memory stream is highly inspired by that in "Generative Agents: Interactive Simulacra of Human Behavior", but with some small changes and big additions. 
