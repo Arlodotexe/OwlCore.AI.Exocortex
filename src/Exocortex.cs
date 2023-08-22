@@ -7,24 +7,21 @@ using System.Threading.Tasks;
 namespace OwlCore.AI.Exocortex;
 
 /// <summary>
-/// Represents the Exocortex, a generative rememberance agent that mimics the human brain's memory recall and consolidation processes.
+/// Represents the Exocortex, a generative remembrance agent that simulates the human brain's memory recall 
+/// and consolidation processes. The Exocortex operates on a "rolling context" mechanism, ensuring that the most 
+/// recent and relevant memories are prioritized, mimicking the human brain's ability to keep track of an 
+/// ongoing conversation by constantly updating its understanding based on new information.
 /// </summary>
 /// <remarks>
 /// The Exocortex manages a collection of memories, each represented by embedding vectors, importance scores, and creation timestamps.
-/// <para/>
-/// It continually reframes and consolidates old memories in light of new experiences, updating the context and interpretation of past events without overwriting the original memories.
-/// This process resembles how recalling a human memory can change the way it is remembered and how the act of recalling can become a new memory itself.
-/// <para/>
-/// Memories in the Exocortex are subject to decay over time (recency), modeled as an exponential decay function. This reflects the human tendency
-/// to recall recent memories more vividly than distant ones.
-/// <para/>
-/// The Exocortex uses a sophisticated mechanism to assign importance to memories, distinguishing significant experiences from mundane events,
-/// akin to how the human mind assigns emotional weight to different memories.
-/// <para/>
-/// Each new memory is compared (using cosine similarity between embedding vectors) to existing memories to establish relevance. This emulates how
-/// human memory retrieval is often triggered by related events or thoughts.
-/// <para/>
-/// This class is designed to interact with different types of memory (e.g., text, audio, visual), making it adaptable for various applications.
+/// 
+/// Key Features:
+/// 1. **Memory Decay**: Memories in the Exocortex decay over time, reflecting the human tendency to recall recent memories more vividly than older ones. This decay is modeled using a logistic curve, closely mirroring the empirical forgetting curve observed in humans.
+/// 2. **Memory Importance**: The system uses a sophisticated mechanism to assign importance to memories, distinguishing significant experiences from mundane events. This is akin to how the human mind assigns emotional weight to memories.
+/// 3. **Memory Clustering**: Memories are grouped based on their content similarity. Within each cluster, a representative memory is chosen based on both its relevance to the current query and its recency.
+/// 4. **Memory Retrieval**: The act of recalling a memory can modify its context and interpretation, reflecting the plastic nature of human memories. This process ensures that past memories are continually reframed in light of new experiences.
+/// 
+/// This class is designed to be adaptable across various applications, allowing for interaction with different types of memory content (e.g., text, audio, visual).
 /// </remarks>
 /// <typeparam name="T">The type of raw content the memories hold.</typeparam>
 public abstract partial class Exocortex<T>
@@ -32,6 +29,7 @@ public abstract partial class Exocortex<T>
     /// <summary>
     /// All memories created by the agent, in the order they were created.
     /// </summary>
+
     public SortedSet<CortexMemory<T>> Memories { get; } = new SortedSet<CortexMemory<T>>();
 
     /// <summary>
@@ -45,14 +43,15 @@ public abstract partial class Exocortex<T>
     public double LongTermDecayThreshold { get; set; } = 0.1;
 
     /// <summary>
-    /// Gets or sets the duration for which a memory is considered in short-term storage before decaying to a specific threshold.  Default to 1 minute.
+    /// Gets or sets the duration for which a memory is considered in short-term storage before decaying to a specific threshold <see cref="ShortTermDecayThreshold"/>.  Default to 25 minutes. 
     /// </summary>
-    public TimeSpan ShortTermMemoryDuration { get; set; } = TimeSpan.FromMinutes(1);
+
+    public TimeSpan ShortTermMemoryDuration { get; set; } = TimeSpan.FromMinutes(25);
 
     /// <summary>
-    /// Gets or sets the duration for which a memory remains in long-term storage before decaying to a specific threshold. Default to 1 hour.
+    /// Gets or sets the duration for which a memory remains in long-term storage before decaying to a specific threshold <see cref="LongTermDecayThreshold"/>. Defaults to 2 weeks.
     /// </summary>
-    public TimeSpan LongTermMemoryDuration { get; set; } = TimeSpan.FromDays(1 * 365);
+    public TimeSpan LongTermMemoryDuration { get; set; } = TimeSpan.FromDays(14);
 
     /// <summary>
     /// Gets the decay rate for memories within the recent memory window (short-term memory).
@@ -80,6 +79,11 @@ public abstract partial class Exocortex<T>
     /// <summary>
     /// The weight used for summary memories of the conversation where old and new context are combined.
     /// </summary>
+    /// <remarks>
+    /// The system should emphasize memory summaries  (recollections) over core memories to provide a more concise and streamlined context.
+    /// While core memories contain dense information, the recollections offer a summarized view, making them more suitable for quick 
+    /// recall and relevance in ongoing conversations.
+    /// </remarks>
     public double RecalledWithContextMemoryWeight { get; set; } = 1.5;
 
     /// <summary>
@@ -118,7 +122,7 @@ public abstract partial class Exocortex<T>
     public int ThoughtBreadthMax { get; set; } = 50;
 
     /// <summary>
-    /// A value between 0 and 1 that indicates how similar the memories in a cluster are. The most recent memory in a cluster is always used.
+    /// A value between 0 and 1 that indicates how similar the memories in a cluster are.
     /// </summary>
     public double MemoryClusterSimilarity { get; set; } = 0.8;
 
@@ -251,6 +255,11 @@ public abstract partial class Exocortex<T>
     /// 
     /// The method begins by prioritizing very recent memories. It then clusters memories based on their similarities and selects a representative memory from each cluster. 
     /// The representative memory is chosen based on its proximity to the cluster's centroid and its weighted score.
+    /// 
+    /// Memories are grouped based on their content similarity. Within each cluster, a representative memory is chosen 
+    /// based on both its relevance to the current query and its recency. This representative memory offers a 
+    /// consolidated view of similar memories, enabling the Exocortex to augment the short-term context with relevant 
+    /// long-term recollections without overwhelming the system with redundant information.
     /// </remarks>
     public IEnumerable<CortexMemory<T>> WeightedMemoryRecall(double[] embedding)
     {
