@@ -26,7 +26,7 @@ The memory stream is highly inspired by that in "Generative Agents: Interactive 
 
 - **Continuity Across Memories**: As new events or memory entries occur, the system retrieves past memories based on factors like time, relevance, and various time-based weights. This provides context for the new memory entry, from the current context, combined with recently retrieved recollections.
 
-By ordering and weighting the most recent memories, we're reinforcing the summaries of events and not the information-dense core memories. The idea is that these memories will still be accessible but will only get recalled if they're more relevant than the summaries. I'm not sure we're doing that right.
+By ordering and weighting the most recent memories, we're reinforcing the summaries of events and not the information-dense core memories. The idea is that these memories will still be accessible but will only get recalled if they're more relevant than the summaries.
 
 - **Recollections**: Removes the need to include the full memory transcript in the context window. 
   - By treating memory recollection as a new observation, it can add new context to old memories without overwriting them, and it boosts the odds of being recalled again in the near future, mimicking an organic working memory.
