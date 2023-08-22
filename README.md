@@ -3,6 +3,9 @@ The creation of an Exocortex is part of a larger exploration into the "Symbiosis
 
 Inspired by the paper "Generative Agents: Interactive Simulacra of Human Behavior"[^1]
 
+> **Important**  
+> The code is being iterated on faster than the README, and it may be out of date as a result.
+
 ## **An Echo of Experiences**
 **Definition**: The Exocortex is a **remembrance agent**, a generative agent specialized in remembering a narrative of observed events over time.
 
@@ -17,26 +20,20 @@ The memory stream is highly inspired by that in "Generative Agents: Interactive 
 
 - **Initial Memory Values**: 
     - **Recency**: Each new memory is timestamped upon creation. Recency decays over time, using an exponential decay function (e.g., decay factor of 0.995) based on the number of hours since the memory was last retrieved.
-    - **Importance**: Assigned an initial score when created, indicating the poignancy of the memory on a scale from 1 (mundane) to 10 (extremely poignant).
     - **Relevance**: Initialized based on the context in which the memory was created, and updated based on the similarity between the memory’s embedding vector and the current context’s embedding vector.
 
 - **Final Retrieval Score**: The retrieval function scores all memories as a weighted combination of recency, importance, and relevance. Scores are normalized to the range of [0, 1] using min-max scaling. In the current implementation, all weights (𝛼) are set to 1. The top-ranked memories that fit within the language model’s context window are included in the prompt.
 
-- **Continuity Across Memories**: As new events or memory entries occur, the system retrieves past memories based on factors like time, relevance, and importance. This provides context for the new memory entry. Objective observations become personalized to past experiences, especially the immediate past.
+- **Continuity Across Memories**: As new events or memory entries occur, the system retrieves past memories based on factors like time, relevance, and various time-based weights. This provides context for the new memory entry, from the current context, combined with recently retrieved recollections.
 
-- **Meta-Observations**: Removes the need to include the full memory transcript in the context window. 
+By ordering and weighting the most recent memories, we're reinforcing the summaries of events and not the information-dense core memories. The idea is that these memories will still be accessible but will only get recalled if they're more relevant than the summaries. I'm not sure we're doing that right.
+
+- **Recollections**: Removes the need to include the full memory transcript in the context window. 
   - By treating memory recollection as a new observation, it can add new context to old memories without overwriting them, and it boosts the odds of being recalled again in the near future, mimicking an organic working memory.
   - Doing this also changes how things are remembered through the lens of the active context.
   - This is reminiscent of how human memory works: recalling a memory can change how it is remembered, and the act of remembering can itself become a new memory.
-
-### Memory Consolidation (SOM Sleep)
-A Self-Organizing Map (SOM) is a type of artificial neural network that is trained using unsupervised learning.
-
-- **Mimicking Human Sleep Cycles**: During 'SOM Sleep', the Exocortex would use SOMs to reorganize and consolidate memories, akin to how human brains are believed to consolidate memories during sleep. This process could involve strengthening important connections between memories and weakening or pruning less important ones.
-
-- **Contextual Integration**: During SOM Sleep, the Exocortex could use SOMs to integrate recent memories with old ones, updating and recontextualizing short-term memories into long-term memories based on new information and reflections.
-
-- **Memory Pruning and Cleanup**: SOM Sleep could also involve cleaning up the memory storage, identifying and safely removing redundant or irrelevant memories, similar to how our brains are believed to prune unnecessary connections during sleep.
+  - We use recollections to summarize the current context each turn, and store that as a memory. These are more likely to be retrieved from long term memory.
+  - Similar recollection memories are clustered together during long term recall. From each cluster, we use the memory with the highest relevance as additional context to the current conversation (short term memory)
 
 ## Install
 
