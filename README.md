@@ -9,7 +9,7 @@ Inspired by the paper "Generative Agents: Interactive Simulacra of Human Behavio
 ## **An Echo of Experiences**
 **Definition**: The Exocortex is a **remembrance agent**, a generative agent specialized in remembering a narrative of observed events over time.
 
-**Vision**: A timestamped and vectorized timeline of experiences and notes. Key to this vision is the concept of the memory stream, a dynamic entity that evolves with new experiences. It's designed to provide a sense of continuity, using careful retrieval of related memories to provide an ongoing context for new experiences.
+**Continuity Across Memories**: As new events or memory entries occur, the system retrieves past memories based on factors like relevance and various time-based weights, and combines them with the new input. This provides structured, chronological long-term and short-term context for the new memory entry.
 
 **Enhancing communication**: The immediate application and likely testing grounds will be to create a timeline of real events and notes in a specific domain to create a basic prototype, with the aim to identify and eliminate communication bottlenecks. Through this, constructs can collaborate or exchange knowledge and experiences autonomously.
 
@@ -24,11 +24,7 @@ The memory stream is highly inspired by that in "Generative Agents: Interactive 
 
 - **Final Retrieval Score**: The retrieval function scores all memories as a weighted combination of recency, importance, and relevance. Scores are normalized to the range of [0, 1] using min-max scaling. In the current implementation, all weights (𝛼) are set to 1. The top-ranked memories that fit within the language model’s context window are included in the prompt.
 
-- **Continuity Across Memories**: As new events or memory entries occur, the system retrieves past memories based on factors like time, relevance, and various time-based weights. This provides context for the new memory entry, from the current context, combined with recently retrieved recollections.
-
-By ordering and weighting the most recent memories, we're reinforcing the summaries of events and not the information-dense core memories. The idea is that these memories will still be accessible but will only get recalled if they're more relevant than the summaries.
-
-- **Recollections**: Removes the need to include the full memory transcript in the context window. 
+**Recollections**: Removes the need to include the full memory transcript in the context window. 
   - By treating memory recollection as a new observation, it can add new context to old memories without overwriting them, and it boosts the odds of being recalled again in the near future, mimicking an organic working memory.
   - Doing this also changes how things are remembered through the lens of the active context.
   - This is reminiscent of how human memory works: recalling a memory can change how it is remembered, and the act of remembering can itself become a new memory.
