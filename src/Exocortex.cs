@@ -16,7 +16,7 @@ namespace OwlCore.AI.Exocortex;
 /// The Exocortex manages a collection of memories, each represented by embedding vectors, importance scores, and creation timestamps.
 /// 
 /// Key Features:
-/// 1. **Memory Decay**: Memories in the Exocortex decay over time, reflecting the human tendency to recall recent memories more vividly than older ones. This decay is modeled using a logistic curve, closely mirroring the empirical forgetting curve observed in humans.
+/// 1. **Memory Decay**: Memories in the Exocortex decay over time, reflecting the human tendency to recall recent memories more vividly than older ones. This decay is modeled using an exponential curve, closely mirroring the empirical forgetting curve observed in humans.
 /// 2. **Memory Importance**: The system uses a sophisticated mechanism to assign importance to memories, distinguishing significant experiences from mundane events. This is akin to how the human mind assigns emotional weight to memories.
 /// 3. **Memory Clustering**: Memories are grouped based on their content similarity. Within each cluster, a representative memory is chosen based on both its relevance to the current query and its recency.
 /// 4. **Memory Retrieval**: The act of recalling a memory can modify its context and interpretation, reflecting the plastic nature of human memories. This process ensures that past memories are continually reframed in light of new experiences.
@@ -29,13 +29,12 @@ public abstract partial class Exocortex<T>
     /// <summary>
     /// All memories created by the agent, in the order they were created.
     /// </summary>
-
     public SortedSet<CortexMemory<T>> Memories { get; } = new SortedSet<CortexMemory<T>>();
 
     /// <summary>
     /// Gets or sets the threshold for determining when a short-term memory has effectively decayed.
     /// </summary>
-    public double ShortTermDecayThreshold { get; set; } = 0.45;
+    public double ShortTermDecayThreshold { get; set; } = 0.65;
 
     /// <summary>
     /// Gets or sets the threshold for determining when a long-term memory has effectively decayed.
@@ -43,15 +42,28 @@ public abstract partial class Exocortex<T>
     public double LongTermDecayThreshold { get; set; } = 0.1;
 
     /// <summary>
-    /// Gets or sets the duration for which a memory is considered in short-term storage before decaying to a specific threshold <see cref="ShortTermDecayThreshold"/>.  Default to 25 minutes. 
+    /// Gets or sets the duration for which a memory is considered in short-term storage before decaying to a specific threshold <see cref="ShortTermDecayThreshold"/>.
     /// </summary>
 
-    public TimeSpan ShortTermMemoryDuration { get; set; } = TimeSpan.FromMinutes(25);
+    public TimeSpan ShortTermMemoryDuration { get; set; } = TimeSpan.FromHours(1);
 
     /// <summary>
-    /// Gets or sets the duration for which a memory remains in long-term storage before decaying to a specific threshold <see cref="LongTermDecayThreshold"/>. Defaults to 2 weeks.
+    /// Gets or sets the duration for which a memory remains in long-term storage before decaying to a specific threshold <see cref="LongTermDecayThreshold"/>.
     /// </summary>
-    public TimeSpan LongTermMemoryDuration { get; set; } = TimeSpan.FromDays(14);
+    public TimeSpan LongTermMemoryDuration
+    {
+        get
+        {
+            if (!Memories.Any())
+            {
+                return TimeSpan.Zero; // Return zero duration if there are no memories
+            }
+
+            // If we end up with a perf bottleneck we'll create a custom collection for Memories and adjust this value when the oldest memory changes.
+            var oldestMemoryTimestamp = Memories.Min(memory => memory.CreationTimestamp);
+            return DateTime.Now - oldestMemoryTimestamp;
+        }
+    }
 
     /// <summary>
     /// Gets the decay rate for memories within the recent memory window (short-term memory).
@@ -80,11 +92,11 @@ public abstract partial class Exocortex<T>
     /// The weight used for summary memories of the conversation where old and new context are combined.
     /// </summary>
     /// <remarks>
-    /// The system should emphasize memory summaries  (recollections) over core memories to provide a more concise and streamlined context.
+    /// The system should emphasize memory summaries (recollections) over core memories to provide a more concise and streamlined context.
     /// While core memories contain dense information, the recollections offer a summarized view, making them more suitable for quick 
     /// recall and relevance in ongoing conversations.
     /// </remarks>
-    public double RecalledWithContextMemoryWeight { get; set; } = 1.5;
+    public double RecalledWithContextMemoryWeight { get; set; } = 2.5;
 
     /// <summary>
     /// The weight used for reaction memories to a new core memory, with the recollections memories as added context.
@@ -268,7 +280,7 @@ public abstract partial class Exocortex<T>
 
         // Prioritize very recent memories
         var recentMemories = Memories
-            .OrderByDescending(m => ComputeRecencyScore(m.CreationTimestamp))
+            .OrderBy(m => ComputeRecencyScore(m.CreationTimestamp))
             .Where(x => x.Type != CortexMemoryType.RecalledWithContext)
             .Take(10);
 
@@ -282,7 +294,7 @@ public abstract partial class Exocortex<T>
             // For each memory in the cluster, compute a weight based on its relevance and recency
             var weightedMemories = cluster
                 .Select(memory => (Memory: memory, Score: ComputeMemoryWeight(memory, embedding)))
-                .OrderByDescending(tuple => tuple.Score); // Order memories by their score
+                .OrderBy(tuple => tuple.Score); // Order memories by their score
 
             // Pick the memory with the highest score as the representative for the cluster
             representativeMemories.Add(GetRepresentativeMemory(weightedMemories.Select(x => x.Memory), embedding));
@@ -317,7 +329,7 @@ public abstract partial class Exocortex<T>
                 return (Memory: memory, Distance: distanceToCentroid, Weight: weight);
             })
             .OrderBy(tuple => tuple.Distance)   // Prioritize memories close to centroid
-            .ThenByDescending(tuple => tuple.Weight)  // Then prioritize based on weight
+            .ThenBy(tuple => tuple.Weight)  // Then prioritize based on weight
             .First().Memory;
     }
 
