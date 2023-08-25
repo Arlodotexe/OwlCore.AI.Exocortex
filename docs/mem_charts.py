@@ -5,28 +5,23 @@ import matplotlib.pyplot as plt
 LONG_TERM_DECAY_THRESHOLD = 0.01
 
 # Decay functions
-# This function models the short-term memory decay using an exponential function. 
-# The decay rate is dynamically adjusted based on the short-term duration and the decay threshold.
+# The short-term memory decay is modeled using an exponential function, which captures the rapid fading of recent memories.
+# This is consistent with how short-term human memories fade quickly.
 def short_term_decay(t, short_term_decay_rate):
     """Compute the short-term decay."""
     return np.exp(-short_term_decay_rate * t)
 
-# This function models the long-term memory decay using a reversed logarithmic function.
-# The decay is influenced by three parameters: a, b, and c.
-# 'a' is the initial memory strength, 'b' determines the rate of decay, 
-# and 'c' scales the time variable to adjust how quickly the function approaches the decay threshold.
+# The long-term memory decay is modeled using a reversed logarithmic function.
+# This is based on the observation that human memories fade slowly over time but never completely disappear.
+# The initial rapid decay slows down, representing the long-lasting nature of certain memories.
 def long_term_decay(t, a, b, c):
     """Compute the adjusted long-term decay using a reversed logarithmic function."""
     return a - b * np.log(c * t + 1)
 
-# This function computes the short-term decay threshold using a logarithmic function.
-# The threshold represents the point at which short-term memory starts to transition to long-term memory.
-# The function ensures that as more long-term memories accumulate, 
-# the threshold decreases, meaning short-term memories decay faster.
-def compute_short_term_decay_threshold(long_term_duration):
-    """Compute the short-term decay threshold based on a logarithmic function."""
-    return 1 / (0.00005 * long_term_duration + 1)
-
+# The short-term decay threshold is computed using a logarithmic function.
+# This threshold represents the point at which short-term memories start transitioning to long-term memories.
+# The function ensures that as more long-term memories accumulate, the threshold decreases, 
+# leading short-term memories to decay faster.
 def compute_short_term_decay_threshold(long_term_duration):
     """Compute the short-term decay threshold based on an exponential function."""
     k = 0.00001
@@ -34,9 +29,9 @@ def compute_short_term_decay_threshold(long_term_duration):
 
 # Parameters for the plots
 short_term_duration = 5  # in minutes
-short_term_duration_hours = short_term_duration / 60  # Convert to hours
+short_term_duration_hours = short_term_duration / 60  # Convert to hours for plotting purposes
 
-# Given long-term durations in hours for different life stages
+# The long-term durations in hours for different life stages serve as benchmarks to evaluate the memory model.
 long_term_durations_in_hours = {
     "Infancy to Early Childhood": 5 * 365 * 24,
     "Childhood to Adolescence": (18 - 5) * 365 * 24,
