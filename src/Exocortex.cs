@@ -34,7 +34,16 @@ public abstract partial class Exocortex<T>
     /// <summary>
     /// Gets or sets the threshold for determining when a short-term memory has effectively decayed.
     /// </summary>
-    public double ShortTermDecayThreshold { get; set; } = 0.65;
+    public double ShortTermDecayThreshold
+    {
+        get
+        {
+            // Adjust the threshold based on the long-term memory duration.
+            // This is a simple linear formula and can be tweaked based on empirical testing.
+            // The idea is to have a decreasing function that approaches a lower bound as LongTermMemoryDuration increases.
+            return Math.Max(0.1, 0.9 / (1 + 0.01 * LongTermMemoryDuration.TotalHours));
+        }
+    }
 
     /// <summary>
     /// Gets or sets the threshold for determining when a long-term memory has effectively decayed.
@@ -42,10 +51,32 @@ public abstract partial class Exocortex<T>
     public double LongTermDecayThreshold { get; set; } = 0.1;
 
     /// <summary>
-    /// Gets or sets the duration for which a memory is considered in short-term storage before decaying to a specific threshold <see cref="ShortTermDecayThreshold"/>.
+    /// Gets the decay rate for short-term memories.
+    /// The decay rate is calculated to ensure that the memory's strength decays to the specified threshold
+    /// within the short-term memory duration.
     /// </summary>
+    public double ShortTermDecayRate => ComputeDecayRate(ShortTermMemoryDuration.TotalHours, ShortTermDecayThreshold);
 
-    public TimeSpan ShortTermMemoryDuration { get; set; } = TimeSpan.FromHours(1);
+    /// <summary>
+    /// Gets the decay rate for long-term memories.
+    /// The decay rate is determined such that the memory's strength decays to a given threshold
+    /// within the long-term half-life duration.
+    /// </summary>
+    public double LongTermDecayRate => ComputeDecayRate(LongTermHalfLife.TotalHours, LongTermDecayThreshold);
+
+    /// <summary>
+    /// Gets or sets the half-life duration for long-term memory decay.
+    /// The half-life represents the time it takes for a memory to reduce to half of its initial strength.
+    /// This provides a more intuitive way to define the exponential decay curve for long-term memories.
+    /// </summary>
+    public TimeSpan LongTermHalfLife { get; set; } = TimeSpan.FromDays(365);
+
+    /// <summary>
+    /// Gets the duration for which a memory is considered in short-term storage before decaying to a specific threshold <see cref="ShortTermDecayThreshold"/>.
+    /// This duration is dynamically adjusted based on the half-life to maintain a constant exponential decay slope.
+    /// </summary>
+    public TimeSpan ShortTermMemoryDuration { get; set; } = TimeSpan.FromMinutes(30);
+
 
     /// <summary>
     /// Gets or sets the duration for which a memory remains in long-term storage before decaying to a specific threshold <see cref="LongTermDecayThreshold"/>.
@@ -66,27 +97,9 @@ public abstract partial class Exocortex<T>
     }
 
     /// <summary>
-    /// Gets the decay rate for memories within the recent memory window (short-term memory).
-    /// Represents the rapid decay characteristic of human working memory.
-    /// </summary>
-    /// <remarks>
-    /// A higher value indicates a faster decay. By default, set to represent a rapid decay for recent memories.
-    /// </remarks>
-    public double ShortTermDecayRate => ComputeDecayRate(ShortTermMemoryDuration.TotalHours, ShortTermDecayThreshold);
-
-    /// <summary>
-    /// Gets the decay rate for memories outside of the recent memory window (long-term memory).
-    /// Represents the slower decay characteristic of human long-term memory.
-    /// </summary>
-    /// <remarks>
-    /// A higher value indicates a faster decay. By default, set to represent a more persistent, slower decay for older memories.
-    /// </remarks>
-    public double LongTermDecayRate => ComputeDecayRate(LongTermMemoryDuration.TotalHours, LongTermDecayThreshold);
-
-    /// <summary>
     /// The weight used for the raw memory content provided to <see cref="AddMemoryAsync(T)"/>.
     /// </summary>
-    public double CoreMemoryWeight { get; set; } = 0.5;
+    public double CoreMemoryWeight { get; set; } = 1;
 
     /// <summary>
     /// The weight used for summary memories of the conversation where old and new context are combined.
@@ -101,7 +114,7 @@ public abstract partial class Exocortex<T>
     /// <summary>
     /// The weight used for reaction memories to a new core memory, with the recollections memories as added context.
     /// </summary>
-    public double ReactionMemoryWeight { get; set; } = 0.5;
+    public double ReactionMemoryWeight { get; set; } = 1;
 
     /// <summary>
     /// Gets or sets the number of related memories to recall when recalling and summarizing the context of a new memory.
@@ -114,29 +127,9 @@ public abstract partial class Exocortex<T>
     public int ThoughtBreadth { get; set; } = 25;
 
     /// <summary>
-    /// Gets or sets a boolean value that indicates if <see cref="ThoughtBreadth"/> is adjust automatically based on the average relevance of the top 10 memories.
-    /// </summary>
-    public bool AutoAdjustThoughtBreadth { get; set; } = false;
-
-    /// <summary>
-    /// Gets or sets a boolean value that indicates if <see cref="ThoughtDepth"/> is adjust automatically based on the average relevance of the top 10 memories.
-    /// </summary>
-    public bool AutoAdjustThoughtDepth { get; set; } = false;
-
-    /// <summary>
-    /// The maximum depth of <see cref="ThoughtDepth"/>.
-    /// </summary>
-    public int ThoughtDepthMax { get; set; } = 10;
-
-    /// <summary>
-    /// The maximum Breadth of <see cref="ThoughtBreadth"/>.
-    /// </summary>
-    public int ThoughtBreadthMax { get; set; } = 50;
-
-    /// <summary>
     /// A value between 0 and 1 that indicates how similar the memories in a cluster are.
     /// </summary>
-    public double MemoryClusterSimilarity { get; set; } = 0.8;
+    public double MemoryClusterSimilarity { get; set; } = 0.75;
 
     /// <summary>
     /// Defines how the Exocortex should rewrite memories under the context of related memories.
@@ -280,8 +273,7 @@ public abstract partial class Exocortex<T>
 
         // Prioritize very recent memories
         var recentMemories = Memories
-            .OrderBy(m => ComputeRecencyScore(m.CreationTimestamp))
-            .Where(x => x.Type != CortexMemoryType.RecalledWithContext)
+            .OrderByDescending(m => ComputeMemoryWeight(m, embedding))
             .Take(10);
 
         representativeMemories.AddRange(recentMemories);
@@ -329,7 +321,7 @@ public abstract partial class Exocortex<T>
                 return (Memory: memory, Distance: distanceToCentroid, Weight: weight);
             })
             .OrderBy(tuple => tuple.Distance)   // Prioritize memories close to centroid
-            .ThenBy(tuple => tuple.Weight)  // Then prioritize based on weight
+            .ThenByDescending(tuple => tuple.Weight)  // Then prioritize based on weight
             .First().Memory;
     }
 
@@ -346,7 +338,7 @@ public abstract partial class Exocortex<T>
     /// 3. Type: Different types of memories (e.g., core, recalled with context, reaction) might have different inherent weights.
     /// This method combines these factors to produce a composite weight for the memory.
     /// </remarks>
-    private double ComputeMemoryWeight(CortexMemory<T> memory, double[] queryEmbedding)
+    public double ComputeMemoryWeight(CortexMemory<T> memory, double[] queryEmbedding)
     {
         var relevance = ComputeCosineSimilarity(queryEmbedding, memory.EmbeddingVector);
         var recency = ComputeRecencyScore(memory.CreationTimestamp);
@@ -361,117 +353,6 @@ public abstract partial class Exocortex<T>
         return relevance * recency * typeWeight;
     }
 
-
-    /// <summary>
-    /// Adds a new memory to the Exocortex, turning objective experiences into subjective experiences.
-    /// </summary>
-    /// <param name="newMemoryContent">The content of the new memory.</param>
-    public Task AddMemoryAsync(T newMemoryContent) => AddMemoryAsync(newMemoryContent, DateTime.Now);
-
-    /// <summary>
-    /// Adds a new memory to the Exocortex, turning objective experiences into subjective experiences.
-    /// </summary>
-    /// <param name="newMemoryContent">The content of the new memory.</param>
-    /// <param name="creationTimestamp">The <see cref="DateTime"/> this memory occured at.</param>
-    public async Task AddMemoryAsync(T newMemoryContent, DateTime creationTimestamp)
-    {
-        // Recall memories related to this new content
-        var rawMemoryEmbedding = await GenerateEmbeddingAsync(newMemoryContent);
-
-        AdjustBreadthAndDepthBasedOnRelevance(rawMemoryEmbedding);
-
-        var recollections = WeightedMemoryRecall(rawMemoryEmbedding).Take(ThoughtBreadth);
-
-        var newMemory = new CortexMemory<T>(newMemoryContent, rawMemoryEmbedding)
-        {
-            CreationTimestamp = creationTimestamp,
-            Type = CortexMemoryType.Core,
-        };
-
-        Memories.Add(newMemory);
-
-        // Remember the act of recalling these memories, and roll reflections from one recollection to the next.
-        var allRelevantMemories = new Dictionary<DateTime, CortexMemory<T>>(recollections.ToDictionary(x => x.CreationTimestamp));
-
-        foreach (var memory in recollections)
-        {
-            // Recall and deduplicate memories related to our recollections.
-            var relatedRecollections = WeightedMemoryRecall(memory.EmbeddingVector)
-                .Except(new[] { memory })
-                .OrderBy(x => x.CreationTimestamp)
-                .Take(ThoughtDepth);
-
-            foreach (var item in relatedRecollections)
-            {
-                if (allRelevantMemories.ContainsKey(item.CreationTimestamp))
-                    continue;
-
-                allRelevantMemories[item.CreationTimestamp] = item;
-            }
-        }
-
-        // Interpret past memory + recollections about the new memory
-        var relevantMemories = allRelevantMemories.Values
-            .Take(ThoughtDepth)
-            .OrderBy(x => x.CreationTimestamp)
-            .ToArray();
-
-        // Roughly emulates the act of remembering and reflecting on thoughts before responding.
-        // Context is rolled from the original memory, through a timeline of the most relevant and recent memories, and out into a "final thought".
-        var recollectionMemory = await SummarizeMemoryInNewContext(newMemory, relevantMemories);
-        var recollectionMemoryEmbedding = await GenerateEmbeddingAsync(recollectionMemory);
-
-        var memoryOfRecollection = new CortexMemory<T>(recollectionMemory, recollectionMemoryEmbedding)
-        {
-            CreationTimestamp = DateTime.Now,
-            Type = CortexMemoryType.RecalledWithContext,
-        };
-
-        allRelevantMemories.Add(memoryOfRecollection.CreationTimestamp, memoryOfRecollection);
-        Memories.Add(memoryOfRecollection);
-
-        // Create final reaction to the new memory, but with recent internal reflections.
-        // Recency weightes ensure recent recollections are prioritized over old ones.
-        // Relevance weights ensure we can filter through large volumes of incoming information.
-        var reaction = await ReactToMemoryAsync(newMemory, allRelevantMemories.Values.Take(ThoughtDepth).OrderBy(x => x.CreationTimestamp));
-        var reactionEmbedding = await GenerateEmbeddingAsync(reaction);
-
-        var reactionMemory = new CortexMemory<T>(reaction, reactionEmbedding)
-        {
-            CreationTimestamp = DateTime.Now,
-            Type = CortexMemoryType.Reaction,
-        };
-
-        Memories.Add(reactionMemory);
-    }
-
-    private void AdjustBreadthAndDepthBasedOnRelevance(double[] embedding)
-    {
-        var topMemories = WeightedMemoryRecall(embedding).ToList();
-
-        // If no memories are available, return without adjusting
-        if (!topMemories.Any())
-            return;
-
-        var averageRelevance = topMemories.Average(memory => ComputeCosineSimilarity(embedding, memory.EmbeddingVector));
-
-        if (averageRelevance > 0.8)  // High relevance threshold
-        {
-            if (AutoAdjustThoughtBreadth)
-                ThoughtBreadth = Math.Min(ThoughtBreadth + 5, ThoughtBreadthMax);  // Max limit
-
-            if (AutoAdjustThoughtDepth)
-                ThoughtDepth = Math.Min(ThoughtDepth + 1, ThoughtDepthMax);      // Max limit
-        }
-        else if (averageRelevance < 0.5)  // Low relevance threshold
-        {
-            if (AutoAdjustThoughtBreadth)
-                ThoughtBreadth = Math.Max(ThoughtBreadth - 1, 1);  // Min limit
-
-            if (AutoAdjustThoughtDepth)
-                ThoughtDepth = Math.Max(ThoughtDepth - 1, 1);      // Min limit
-        }
-    }
 
     /// <summary>
     /// Clusters similar memories together based on their embedding similarity.
@@ -577,4 +458,83 @@ public abstract partial class Exocortex<T>
         return averagedEmbedding;
     }
 
+    /// <summary>
+    /// Adds a new memory to the Exocortex, turning objective experiences into subjective experiences.
+    /// </summary>
+    /// <param name="newMemoryContent">The content of the new memory.</param>
+    public Task AddMemoryAsync(T newMemoryContent) => AddMemoryAsync(newMemoryContent, DateTime.Now);
+
+    /// <summary>
+    /// Adds a new memory to the Exocortex, turning objective experiences into subjective experiences.
+    /// </summary>
+    /// <param name="newMemoryContent">The content of the new memory.</param>
+    /// <param name="creationTimestamp">The <see cref="DateTime"/> this memory occurred at.</param>
+    public async Task AddMemoryAsync(T newMemoryContent, DateTime creationTimestamp)
+    {
+        // Recall memories related to this new content
+        var rawMemoryEmbedding = await GenerateEmbeddingAsync(newMemoryContent);
+        var recollections = WeightedMemoryRecall(rawMemoryEmbedding).Take(ThoughtBreadth);
+
+        var newMemory = new CortexMemory<T>(newMemoryContent, rawMemoryEmbedding)
+        {
+            CreationTimestamp = creationTimestamp,
+            Type = CortexMemoryType.Core,
+        };
+
+        Memories.Add(newMemory);
+
+        // Remember the act of recalling these memories, and roll reflections from one recollection to the next.
+        var allRelevantMemories = new Dictionary<DateTime, CortexMemory<T>>(recollections.ToDictionary(x => x.CreationTimestamp));
+
+        foreach (var memory in recollections)
+        {
+            // Recall and deduplicate memories related to our recollections.
+            var relatedRecollections = WeightedMemoryRecall(memory.EmbeddingVector)
+                .Except(new[] { memory })
+                .OrderBy(x => x.CreationTimestamp)
+                .Take(ThoughtDepth);
+
+            foreach (var item in relatedRecollections)
+            {
+                if (allRelevantMemories.ContainsKey(item.CreationTimestamp))
+                    continue;
+
+                allRelevantMemories[item.CreationTimestamp] = item;
+            }
+        }
+
+        // Interpret past memory + recollections about the new memory
+        var relevantMemories = allRelevantMemories.Values
+            .Take(ThoughtDepth)
+            .OrderBy(x => x.CreationTimestamp)
+            .ToArray();
+
+        // Roughly emulates the act of remembering and reflecting on thoughts before responding.
+        // Context is rolled from the original memory, through a timeline of the most relevant and recent memories, and out into a "final thought".
+        var recollectionMemory = await SummarizeMemoryInNewContext(newMemory, relevantMemories);
+        var recollectionMemoryEmbedding = await GenerateEmbeddingAsync(recollectionMemory);
+
+        var memoryOfRecollection = new CortexMemory<T>(recollectionMemory, recollectionMemoryEmbedding)
+        {
+            CreationTimestamp = DateTime.Now,
+            Type = CortexMemoryType.RecalledWithContext,
+        };
+
+        allRelevantMemories.Add(memoryOfRecollection.CreationTimestamp, memoryOfRecollection);
+        Memories.Add(memoryOfRecollection);
+
+        // Create final reaction to the new memory, but with recent internal reflections.
+        // Recency weights ensure recent recollections are prioritized over old ones.
+        // Relevance weights ensure we can filter through large volumes of incoming information.
+        var reaction = await ReactToMemoryAsync(newMemory, allRelevantMemories.Values.Take(ThoughtDepth).OrderBy(x => x.CreationTimestamp));
+        var reactionEmbedding = await GenerateEmbeddingAsync(reaction);
+
+        var reactionMemory = new CortexMemory<T>(reaction, reactionEmbedding)
+        {
+            CreationTimestamp = DateTime.Now,
+            Type = CortexMemoryType.Reaction,
+        };
+
+        Memories.Add(reactionMemory);
+    }
 }
