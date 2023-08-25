@@ -58,9 +58,9 @@ Our findings plotted over various lifespans, from infancy to old age.
 - **Role**: Represents the minimum strength a long-term memory can have. It's the point below which a memory is considered lost or inaccessible.
 - **Rationale**: Mimics the idea that some human memories, no matter how old, never completely vanish but can become very hard to access.
 - **Challenge & Solution**:
-  - By making the short-term decay threshold climb exponentially with age (countering the age 45 memory loss), we noted the functional inverse was happening - the difference between the short term decay threshold and the long-term decay threshold was being approached logistically.
-  - This resulted in a flattening and decline in long-term memory strength. The strength of memories in long-term were being squeezed into a box.
-  - This was rectified by applying an exponential function to counter it, which resulted in a long-term memory curve that may be stable far beyond the charted 100 years (see "Elderly" chart above).
+  - After making the short-term decay threshold climb logistically with age (countering the memory loss caused by the purely exponential curve), we noted the functional inverse of our last problem was happening in the lower bounds instead of the upper - the difference between the short term decay threshold and the long-term decay threshold was being approached logistically.
+  - This resulted in a flattening and decline in long-term memory strength. The strength of long-term memories were being squeezed into a very small range of possible strength.
+  - This was rectified by applying an exponential function to counter it, which resulted in a long-term memory curve that may be stable beyond the charted 100 years (see "Elderly" chart above).
 
 | Before (logistic)                                      | After (exponential)                                  |
 | ------------------------------------------------------- | ---------------------------------------------------- |
