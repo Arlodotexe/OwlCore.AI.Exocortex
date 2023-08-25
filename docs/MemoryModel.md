@@ -1,6 +1,21 @@
 # Exocortex Memory Model
 
 The curves for short-term and long-term memories are exponential and logarithmic respectively, normalizing and adapting to both the oldest long-term memory and the short-term memory duration specified by the user.
+   
+## Finished curves
+
+Our findings plotted over various lifespans, from infancy to old age. 
+
+<img src="adjusted_memory_decay_Infancy_to_Early_Childhood.png">
+<br/>
+<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+    <img src="adjusted_memory_decay_Childhood_to_Adolescence.png">
+    <img src="adjusted_memory_decay_Young_Adulthood.png" >
+    <img src="adjusted_memory_decay_Middle_Age.png">
+</div>
+<br/>
+<img src="adjusted_memory_decay_Elderly.png">
+
 
 ## Decay Rate and Threshold functions 
 
@@ -36,13 +51,3 @@ The curves for short-term and long-term memories are exponential and logarithmic
 - **Challenge & Solution**:
   - By making the short-term decay threshold climb exponentially with age (countering the age 45 memory loss), we noted the functional inverse was happening - the difference between the short term decay threshold and the long-term decay threshold was being approached logistically.
   - This resulted in a flattening and decline in long-term memory strength. This was rectified by applying an exponential function to counter it.
-   
-<img src="adjusted_memory_decay_Infancy_to_Early_Childhood.png">
-<br/>
-<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
-    <img src="adjusted_memory_decay_Childhood_to_Adolescence.png">
-    <img src="adjusted_memory_decay_Young_Adulthood.png" >
-    <img src="adjusted_memory_decay_Middle_Age.png">
-</div>
-<br/>
-<img src="adjusted_memory_decay_Elderly.png">
