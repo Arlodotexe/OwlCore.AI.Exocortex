@@ -6,15 +6,13 @@ The curves for short-term and long-term memories are exponential and logarithmic
 
 Our findings plotted over various lifespans, from infancy to old age. 
 
-<img src="adjusted_memory_decay_Infancy_to_Early_Childhood.png">
-<br/>
-<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-    <img src="adjusted_memory_decay_Childhood_to_Adolescence.png">
-    <img src="adjusted_memory_decay_Young_Adulthood.png" >
-    <img src="adjusted_memory_decay_Middle_Age.png">
-</div>
-<br/>
-<img src="adjusted_memory_decay_Elderly.png">
+| Infancy to Early Childhood      | Childhood to Adolescence      | Young Adulthood             |
+| ------------------------------ | ---------------------------- | --------------------------- |
+| ![Infancy](adjusted_memory_decay_Infancy_to_Early_Childhood.png) | ![Childhood](adjusted_memory_decay_Childhood_to_Adolescence.png) | ![Young Adulthood](adjusted_memory_decay_Young_Adulthood.png) |
+
+| Middle Age                     | Elderly                      |
+| ------------------------------ | ---------------------------- |
+| ![Middle Age](adjusted_memory_decay_Middle_Age.png) | ![Elderly](adjusted_memory_decay_Elderly.png) |
 
 
 ## Decay Rate and Threshold functions 
@@ -47,15 +45,10 @@ Our findings plotted over various lifespans, from infancy to old age.
     - To address this, we treated short-term decay threshold as a function of long-term memory duration, using a logarithmic function.
     - This resulted in a more gradual increase in the short-term decay threshold, which in turn led to a _significantly_ more gradual loss of short-term memory.
 
-<div style="display: grid; grid-template-columns: repeat(2, auto); gap: 10px;">
-    <span>Before (exponential)</span>
-    <span>After (logistic)</span>
-</div>
 
-<div style="display: grid; grid-template-columns: repeat(2, auto); gap: 10px;">
-    <img src="pre_short_term_threshold_fix_threshold_over_age_exponential.png">
-    <img src="pre_short_term_threshold_fix_threshold_over_age_logistic.png">
-</div>
+| Before (exponential)             | After (logistic)             |
+| -------------------------------- | ---------------------------- |
+|  ![Exponential](pre_short_term_threshold_fix_threshold_over_age_exponential.png)  |  ![Logistic](pre_short_term_threshold_fix_threshold_over_age_logistic.png)      |
 
 ---
 
@@ -69,14 +62,8 @@ Our findings plotted over various lifespans, from infancy to old age.
   - This resulted in a flattening and decline in long-term memory strength. The strength of memories in long-term were being squeezed into a box.
   - This was rectified by applying an exponential function to counter it, which resulted in a long-term memory curve that may be stable far beyond the charted 100 years (see "Elderly" chart above).
 
-<div style="display: grid; grid-template-columns: repeat(2, auto); gap: 10px;">
-    <span>Before (logistic)</span>
-    <span>After (exponential)</span>
-</div>
-
-<div style="display: grid; grid-template-columns: repeat(2, auto); gap: 10px;">
-    <img src="post_short_term_threshold_fix_threshold_over_age_logistic.png">
-    <img src="post_short_term_threshold_fix_threshold_over_age_exponential.png">
-</div>
+| Before (logistic)                                      | After (exponential)                                  |
+| ------------------------------------------------------- | ---------------------------------------------------- |
+| ![Logistic](post_short_term_threshold_fix_threshold_over_age_logistic.png) | ![Exponential](post_short_term_threshold_fix_threshold_over_age_exponential.png) |
 
 <br/>
