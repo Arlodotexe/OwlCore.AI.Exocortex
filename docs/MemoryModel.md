@@ -6,7 +6,7 @@ The curves for short-term and long-term memories are exponential and logarithmic
 
 Our findings plotted over various lifespans, from infancy to old age.
 
-Can generated again using [./mem_charts.py](./mem_charts.py).
+Plotted with a long-term decay threshold of 0.2. Can be tweaked and generated again using [./mem_charts.py](./mem_charts.py).
 
 | Infancy to Early Childhood      | Childhood to Adolescence      | Young Adulthood             |
 | ------------------------------ | ---------------------------- | --------------------------- |
