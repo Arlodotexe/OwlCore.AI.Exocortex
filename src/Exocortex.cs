@@ -13,11 +13,10 @@ namespace OwlCore.AI.Exocortex;
 /// ongoing conversation by constantly updating its understanding based on new information.
 /// </summary>
 /// <remarks>
-/// The Exocortex manages a collection of memories, each represented by embedding vectors, importance scores, and creation timestamps.
+/// The Exocortex manages a collection of memories, each represented by embedding vectors and creation timestamps.
 /// 
 /// Key Features:
-/// 1. **Memory Decay**: Memories in the Exocortex decay over time, reflecting the human tendency to recall recent memories more vividly than older ones. This decay is modeled using an exponential curve, closely mirroring the empirical forgetting curve observed in humans.
-/// 2. **Memory Importance**: The system uses a sophisticated mechanism to assign importance to memories, distinguishing significant experiences from mundane events. This is akin to how the human mind assigns emotional weight to memories.
+/// 1. **Memory Decay**: Memories in the Exocortex decay over time, reflecting the human tendency to recall recent memories more vividly than older ones. This decay is modeled using an an intricate balance between duration, decay rate and decay thresholds for both short-term and long-term memory.
 /// 3. **Memory Clustering**: Memories are grouped based on their content similarity. Within each cluster, a representative memory is chosen based on both its relevance to the current query and its recency.
 /// 4. **Memory Retrieval**: The act of recalling a memory can modify its context and interpretation, reflecting the plastic nature of human memories. This process ensures that past memories are continually reframed in light of new experiences.
 /// 
@@ -31,17 +30,31 @@ public abstract partial class Exocortex<T>
     /// </summary>
     public SortedSet<CortexMemory<T>> Memories { get; } = new SortedSet<CortexMemory<T>>();
 
+    // Short-term memory decay rate (Exponential decay)
+    public double ShortTermDecayRate => -Math.Log(ShortTermDecayThreshold) / ShortTermMemoryDuration.TotalHours;
+
+    // Long-term memory decay rate (Reversed Logarithmic decay)
+    public double LongTermDecayRate => (Math.Exp(1 - LongTermDecayThreshold) - 1) / LongTermMemoryDuration.TotalHours;
+
     /// <summary>
-    /// Gets or sets the threshold for determining when a short-term memory has effectively decayed.
+    /// Gets the threshold for determining when a short-term memory has effectively decayed.
+    /// The short-term decay threshold is a function of the duration of long-term memories. As the 
+    /// oldest memories in the system age, this threshold decreases, reflecting the idea that 
+    /// the boundary between short-term and long-term recall becomes more forgiving.
     /// </summary>
     public double ShortTermDecayThreshold
     {
         get
         {
-            // Adjust the threshold based on the long-term memory duration.
-            // This is a simple linear formula and can be tweaked based on empirical testing.
-            // The idea is to have a decreasing function that approaches a lower bound as LongTermMemoryDuration increases.
-            return Math.Max(0.1, 0.9 / (1 + 0.01 * LongTermMemoryDuration.TotalHours));
+            // Function: Logarithmic function of long-term memory duration
+            // Rationale: Represents the point at which short-term memories start 
+            // transitioning to long-term memories. As more long-term memories accumulate, 
+            // the threshold decreases, leading short-term memories to decay faster and long-term memories to decay slower.
+            const double T_max = 1;
+            double T_min = LongTermDecayThreshold;
+            double D_lt = LongTermMemoryDuration.TotalHours;
+
+            return T_max - (T_max - T_min) * Math.Log(1 + D_lt);
         }
     }
 
@@ -51,32 +64,9 @@ public abstract partial class Exocortex<T>
     public double LongTermDecayThreshold { get; set; } = 0.1;
 
     /// <summary>
-    /// Gets the decay rate for short-term memories.
-    /// The decay rate is calculated to ensure that the memory's strength decays to the specified threshold
-    /// within the short-term memory duration.
-    /// </summary>
-    public double ShortTermDecayRate => ComputeDecayRate(ShortTermMemoryDuration.TotalHours, ShortTermDecayThreshold);
-
-    /// <summary>
-    /// Gets the decay rate for long-term memories.
-    /// The decay rate is determined such that the memory's strength decays to a given threshold
-    /// within the long-term half-life duration.
-    /// </summary>
-    public double LongTermDecayRate => ComputeDecayRate(LongTermHalfLife.TotalHours, LongTermDecayThreshold);
-
-    /// <summary>
-    /// Gets or sets the half-life duration for long-term memory decay.
-    /// The half-life represents the time it takes for a memory to reduce to half of its initial strength.
-    /// This provides a more intuitive way to define the exponential decay curve for long-term memories.
-    /// </summary>
-    public TimeSpan LongTermHalfLife { get; set; } = TimeSpan.FromDays(365);
-
-    /// <summary>
-    /// Gets the duration for which a memory is considered in short-term storage before decaying to a specific threshold <see cref="ShortTermDecayThreshold"/>.
-    /// This duration is dynamically adjusted based on the half-life to maintain a constant exponential decay slope.
+    /// Gets the duration for which a memory is considered as short-term before decaying to a specific threshold <see cref="ShortTermDecayThreshold"/>.
     /// </summary>
     public TimeSpan ShortTermMemoryDuration { get; set; } = TimeSpan.FromMinutes(30);
-
 
     /// <summary>
     /// Gets or sets the duration for which a memory remains in long-term storage before decaying to a specific threshold <see cref="LongTermDecayThreshold"/>.
@@ -205,45 +195,29 @@ public abstract partial class Exocortex<T>
     }
 
     /// <summary>
-    /// Computes the recency score of a memory based on its creation timestamp using the forgetting curve.
+    /// Computes the recency score of a memory based on its creation timestamp using the decay model.
     /// </summary>
     /// /// <param name="creationTimestamp">The timestamp when the memory was created.</param>
     /// <returns>The recency score ranging from 0 (completely forgotten) to 1 (fully remembered).</returns>
-    /// <remarks>
-    /// This method calculates the memory strength or "freshness" of a memory over time using the exponential decay formula.
-    /// 
-    /// The formula is:
-    /// M(t) = M_0 * exp(-k*t)
-    /// Where:
-    /// - M(t) is the memory strength at time t.
-    /// - M_0 is the initial memory strength (typically 1, meaning full strength).
-    /// - k is the decay rate.
-    /// - t is the time since the memory was formed.
-    /// 
-    /// For memories within the short-term duration, the method uses the short-term decay rate.
-    /// For memories outside of this window, it uses the long-term decay rate, adjusted such that the 
-    /// beginning of the long-term curve matches the end of the short-term decay curve.
-    /// 
-    /// The behavior of this method reflects the forgetting curve, where memories decay exponentially 
-    /// over time, with short-term memories decaying faster than long-term ones.
-    /// </remarks>
     public double ComputeRecencyScore(DateTime creationTimestamp)
     {
-        var timeSpanSinceCreation = DateTime.Now - creationTimestamp;
-        var hoursSinceCreation = timeSpanSinceCreation.TotalHours;
+        // Computes the recency score of a memory based on its creation timestamp 
+        // using either the exponential decay model (short-term memory) or the 
+        // reversed logarithmic decay model (long-term memory).
+        
+        double currentTime = (DateTime.Now - creationTimestamp).TotalHours;
 
-        // Determine which decay rate to use based on the age of the memory
-        if (timeSpanSinceCreation <= ShortTermMemoryDuration)
+        if (currentTime <= ShortTermMemoryDuration.TotalHours)
         {
-            // Short-term memory decay
-            return Math.Exp(-ShortTermDecayRate * hoursSinceCreation);
+            // Exponential decay for short-term memory
+            return Math.Exp(-ShortTermDecayRate * currentTime);
         }
         else
         {
-            // Adjusted long-term memory decay.
-            // The beginning of this curve matches the end of the short-term decay curve.
-            double M_end_short_term = Math.Exp(-ShortTermDecayRate * ShortTermMemoryDuration.TotalHours);
-            return M_end_short_term * Math.Exp(-LongTermDecayRate * hoursSinceCreation);
+            // Reversed Logarithmic decay for long-term memory
+            double decayRate = LongTermDecayRate;
+            double x = LongTermMemoryDuration.TotalHours;
+            return 1 - Math.Log(1 + decayRate * currentTime) / Math.Log(1 + decayRate * x);
         }
     }
 
