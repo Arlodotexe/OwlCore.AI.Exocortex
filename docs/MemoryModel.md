@@ -4,7 +4,9 @@ The curves for short-term and long-term memories are exponential and logarithmic
    
 ## Finished curves
 
-Our findings plotted over various lifespans, from infancy to old age. 
+Our findings plotted over various lifespans, from infancy to old age.
+
+Can generated again using [./mem_charts.py](./mem_charts.py).
 
 | Infancy to Early Childhood      | Childhood to Adolescence      | Young Adulthood             |
 | ------------------------------ | ---------------------------- | --------------------------- |
