@@ -66,7 +66,8 @@ Our findings plotted over various lifespans, from infancy to old age.
 - **Rationale**: Mimics the idea that some human memories, no matter how old, never completely vanish but can become very hard to access.
 - **Challenge & Solution**:
   - By making the short-term decay threshold climb exponentially with age (countering the age 45 memory loss), we noted the functional inverse was happening - the difference between the short term decay threshold and the long-term decay threshold was being approached logistically.
-  - This resulted in a flattening and decline in long-term memory strength. This was rectified by applying an exponential function to counter it.
+  - This resulted in a flattening and decline in long-term memory strength. The strength of memories in long-term were being squeezed into a box.
+  - This was rectified by applying an exponential function to counter it, which resulted in a long-term memory curve that may be stable far beyond the charted 100 years (see "Elderly" chart above).
 
 <div style="display: grid; grid-template-columns: repeat(2, auto); gap: 10px;">
     <span>Before (logistic)</span>
