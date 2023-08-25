@@ -6,6 +6,9 @@ Inspired by the paper "Generative Agents: Interactive Simulacra of Human Behavio
 > **Important**  
 > The code is being iterated on faster than the README, and it may be out of date as a result.
 
+> **Important**  
+> Our finished research on memory curves now available in [docs/MemoryModel.md](docs/MemoryModel.md)
+
 ## **An Echo of Experiences**
 **Definition**: The Exocortex is a **remembrance agent**, a generative agent specialized in remembering a narrative of observed events over time.
 
