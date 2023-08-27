@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ClusterF_ck.DBSCAN;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -30,10 +31,14 @@ public abstract partial class Exocortex<T>
     /// </summary>
     public SortedSet<CortexMemory<T>> Memories { get; } = new SortedSet<CortexMemory<T>>();
 
-    // Short-term memory decay rate (Exponential decay)
+    /// <summary>
+    /// Short-term memory decay rate (Exponential decay)
+    /// </summary>
     public double ShortTermDecayRate => -Math.Log(ShortTermDecayThreshold) / ShortTermMemoryDuration.TotalHours;
 
-    // Long-term memory decay rate (Reversed Logarithmic decay)
+    /// <summary>
+    /// Long-term memory decay rate (Reversed Logarithmic decay)
+    /// </summary>
     public double LongTermDecayRate => (Math.Exp(1 - LongTermDecayThreshold) - 1) / LongTermMemoryDuration.TotalHours;
 
     /// <summary>
@@ -162,39 +167,6 @@ public abstract partial class Exocortex<T>
     }
 
     /// <summary>
-    /// Computes the decay rate for a given duration and threshold.
-    /// </summary>
-    /// <param name="x">The desired duration (in hours) for the memory to decay to the specified threshold.</param>
-    /// <param name="threshold">The recency score threshold representing the "effectively decayed" state.</param>
-    /// <returns>The decay rate for the logistic decay function.</returns>
-    /// <remarks>
-    /// This method calculates the decay rate (k) required to reach a specific threshold in a given time duration.
-    /// 
-    /// The exponential decay formula is:
-    /// M(t) = M_0 * exp(-k*t)
-    /// Where:
-    /// - M(t) is the memory strength at time t.
-    /// - M_0 is the initial memory strength (typically 1, meaning full strength).
-    /// - k is the decay rate.
-    /// - t is the time since the memory was formed.
-    /// 
-    /// To derive the decay rate (k), we rearrange the formula for a given threshold and duration (x):
-    /// threshold = exp(-k * x)
-    /// Taking the natural logarithm:
-    /// ln(threshold) = -k * x
-    /// From this, we can solve for k:
-    /// k = -ln(threshold) / x
-    /// 
-    /// This formula provides a decay rate that matches the forgetting curve observed in human memory studies.
-    /// </remarks>
-    private double ComputeDecayRate(double x, double threshold)
-    {
-        // Setting the inflection point to the midpoint of the specified duration
-        double x0 = x / 2;
-        return Math.Log((1 / threshold) - 1) / (x - x0);
-    }
-
-    /// <summary>
     /// Computes the recency score of a memory based on its creation timestamp using the decay model.
     /// </summary>
     /// /// <param name="creationTimestamp">The timestamp when the memory was created.</param>
@@ -204,7 +176,7 @@ public abstract partial class Exocortex<T>
         // Computes the recency score of a memory based on its creation timestamp 
         // using either the exponential decay model (short-term memory) or the 
         // reversed logarithmic decay model (long-term memory).
-        
+
         double currentTime = (DateTime.Now - creationTimestamp).TotalHours;
 
         if (currentTime <= ShortTermMemoryDuration.TotalHours)
@@ -257,46 +229,17 @@ public abstract partial class Exocortex<T>
 
         foreach (var cluster in clusters)
         {
-            // For each memory in the cluster, compute a weight based on its relevance and recency
-            var weightedMemories = cluster
+            // For each memory in the cluster, compute a cluster-relative weight based on its relevance and recency
+            var weightedMemories = cluster.Points
                 .Select(memory => (Memory: memory, Score: ComputeMemoryWeight(memory, embedding)))
                 .OrderBy(tuple => tuple.Score); // Order memories by their score
 
             // Pick the memory with the highest score as the representative for the cluster
-            representativeMemories.Add(GetRepresentativeMemory(weightedMemories.Select(x => x.Memory), embedding));
+            if (weightedMemories.Any())
+                representativeMemories.Add(weightedMemories.First().Memory);
         }
 
         return representativeMemories.Distinct();
-    }
-
-    /// <summary>
-    /// Determines the representative memory of a cluster based on its proximity to the cluster's centroid and its weighted score.
-    /// </summary>
-    /// <param name="cluster">The collection of memories forming a cluster.</param>
-    /// <param name="queryEmbedding">The embedding vector of the query/content being compared against the cluster.</param>
-    /// <returns>The memory that best represents the cluster.</returns>
-    /// <remarks>
-    /// The representative memory is selected based on two criteria:
-    /// 1. Proximity to the centroid: The representative should be close to the weighted average embedding of the cluster.
-    /// 2. Weighted score: The memory's relevance to a query, its recency, and its type contribute to its weight.
-    /// This method first prioritizes memories that are close to the centroid and then selects the one with the highest weighted score.
-    /// </remarks>
-    public CortexMemory<T> GetRepresentativeMemory(IEnumerable<CortexMemory<T>> cluster, double[] queryEmbedding)
-    {
-        var centroid = ComputeWeightedAverageEmbedding(cluster);
-        if (centroid is null)
-            throw new ArgumentNullException(nameof(centroid));
-
-        return cluster
-            .Select(memory =>
-            {
-                var distanceToCentroid = 1 - ComputeCosineSimilarity(centroid, memory.EmbeddingVector); // We subtract from 1 to convert similarity to distance
-                var weight = ComputeMemoryWeight(memory, queryEmbedding);
-                return (Memory: memory, Distance: distanceToCentroid, Weight: weight);
-            })
-            .OrderBy(tuple => tuple.Distance)   // Prioritize memories close to centroid
-            .ThenByDescending(tuple => tuple.Weight)  // Then prioritize based on weight
-            .First().Memory;
     }
 
     /// <summary>
@@ -348,43 +291,11 @@ public abstract partial class Exocortex<T>
     /// By clustering memories, the Exocortex can identify patterns and groupings in the stored data, 
     /// which can be useful for various memory retrieval and analysis tasks.
     /// </remarks>
-    public IEnumerable<IEnumerable<CortexMemory<T>>> ClusterSimilarMemories(IEnumerable<CortexMemory<T>> memories, double similarityThreshold)
+    public List<DBSCluster<CortexMemory<T>, CortexMemoryDistanceSpace<T>>> ClusterSimilarMemories(IEnumerable<CortexMemory<T>> memories, double similarityThreshold)
     {
-        var clusters = new List<List<CortexMemory<T>>>();
+        var clusterConfig = new DBSConfig(eps: similarityThreshold, minPts: 1, returnNoise: true);
 
-        // Iterate through each memory to determine its cluster
-        foreach (var memory in memories)
-        {
-            bool foundCluster = false;
-
-            // For each existing cluster, compute its weighted average embedding
-            // and check the similarity with the current memory.
-            foreach (var cluster in clusters)
-            {
-                var clusterAverage = ComputeWeightedAverageEmbedding(cluster);
-
-                // If the cluster is empty, skip to the next cluster
-                if (clusterAverage is null)
-                    continue;
-
-                // If the cosine similarity of the current memory and the cluster's average embedding
-                // exceeds the threshold, the memory is added to that cluster.
-                if (ComputeCosineSimilarity(memory.EmbeddingVector, clusterAverage) > similarityThreshold)
-                {
-                    cluster.Add(memory);
-                    foundCluster = true;
-                    break;
-                }
-            }
-
-            // If the memory does not belong to any existing cluster, create a new cluster for it.
-            if (!foundCluster)
-            {
-                clusters.Add(new List<CortexMemory<T>> { memory });
-            }
-        }
-
-        return clusters;
+        return DBSCAN.Cluster<CortexMemory<T>, CortexMemoryDistanceSpace<T>>(memories.ToArray().AsSpan(), clusterConfig, new CortexMemoryDistanceSpace<T>(this));
     }
 
     /// <summary>
@@ -483,19 +394,22 @@ public abstract partial class Exocortex<T>
             .OrderBy(x => x.CreationTimestamp)
             .ToArray();
 
-        // Roughly emulates the act of remembering and reflecting on thoughts before responding.
-        // Context is rolled from the original memory, through a timeline of the most relevant and recent memories, and out into a "final thought".
-        var recollectionMemory = await SummarizeMemoryInNewContext(newMemory, relevantMemories);
-        var recollectionMemoryEmbedding = await GenerateEmbeddingAsync(recollectionMemory);
-
-        var memoryOfRecollection = new CortexMemory<T>(recollectionMemory, recollectionMemoryEmbedding)
+        if (relevantMemories.Any())
         {
-            CreationTimestamp = DateTime.Now,
-            Type = CortexMemoryType.RecalledWithContext,
-        };
+            // Roughly emulates the act of remembering and reflecting on thoughts before responding.
+            // Context is rolled from the original memory, through a timeline of the most relevant and recent memories, and out into a "final thought".
+            var recollectionMemory = await SummarizeMemoryInNewContext(newMemory, relevantMemories);
+            var recollectionMemoryEmbedding = await GenerateEmbeddingAsync(recollectionMemory);
 
-        allRelevantMemories.Add(memoryOfRecollection.CreationTimestamp, memoryOfRecollection);
-        Memories.Add(memoryOfRecollection);
+            var memoryOfRecollection = new CortexMemory<T>(recollectionMemory, recollectionMemoryEmbedding)
+            {
+                CreationTimestamp = DateTime.Now,
+                Type = CortexMemoryType.RecalledWithContext,
+            };
+
+            allRelevantMemories.Add(memoryOfRecollection.CreationTimestamp, memoryOfRecollection);
+            Memories.Add(memoryOfRecollection);
+        }
 
         // Create final reaction to the new memory, but with recent internal reflections.
         // Recency weights ensure recent recollections are prioritized over old ones.

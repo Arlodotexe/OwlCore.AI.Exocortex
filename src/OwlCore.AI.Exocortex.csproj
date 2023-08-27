@@ -54,6 +54,7 @@ Initial release of OwlCore.AI.Exocortex.
 	</ItemGroup>
 
 	<ItemGroup>
+		<PackageReference Include="ClusterF_ck" Version="0.0.1-alpha1" />
 		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="7.0.0" />
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
 		<PackageReference Include="PolySharp" Version="1.13.2">
