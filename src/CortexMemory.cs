@@ -9,7 +9,7 @@ namespace OwlCore.AI.Exocortex;
 public record CortexMemory<T> : IComparable<CortexMemory<T>>
 {
     /// <summary>
-    /// Represents a single memory in the exocortex, with content and associated metadata.
+    /// Creates a new instance of <see cref="CortexMemory{T}"/>.
     /// </summary>
     /// <param name="content">The raw content of the memory.</param>
     /// <param name="embeddingVector">The vectorized embeddings that represent this memory.</param>

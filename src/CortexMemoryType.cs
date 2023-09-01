@@ -14,9 +14,9 @@ public enum CortexMemoryType
     /// <summary>
     /// Memories that have been recalled in the context of other related memories.
     /// These represent reframed or reinterpreted versions of original or previously recalled memories,
-    /// taking into account additional context from related memories.
+    /// taking into account additional context from clusters of related memories.
     /// </summary>
-    RecalledWithContext,
+    Recollection,
 
     /// <summary>
     /// Reactions represent the system's direct responses or reactions to new memories or inputs.
