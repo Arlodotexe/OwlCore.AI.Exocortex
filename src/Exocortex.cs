@@ -84,7 +84,7 @@ public abstract partial class Exocortex<T>
     /// <summary>
     /// Gets the duration for which a memory is considered as short-term before decaying to a specific threshold <see cref="ShortTermDecayThreshold"/>.
     /// </summary>
-    public TimeSpan ShortTermMemoryDuration { get; set; } = TimeSpan.FromMinutes(3);
+    public TimeSpan ShortTermMemoryDuration { get; set; } = TimeSpan.FromMinutes(25);
 
     /// <summary>
     /// Gets or sets the duration for which a memory remains in long-term storage before decaying to a specific threshold <see cref="LongTermDecayThreshold"/>.
@@ -127,7 +127,7 @@ public abstract partial class Exocortex<T>
     /// <summary>
     /// The maximum number of memories recalled from long-term memory.
     /// </summary>
-    public int LongTermMemoryRecallLimit { get; set; } = 8;
+    public int LongTermMemoryRecallLimit { get; set; } = 24;
 
     /// <summary>
     /// Defines how the Exocortex should rewrite memories under the context of related memories.
@@ -305,7 +305,9 @@ public abstract partial class Exocortex<T>
             float[][] embeddings = relatedMemories.Select(x => x.EmbeddingVector.Select(v => (float)v).ToArray()).ToArray();
 
             // UMAP Reduction
-            var umap = new Umap((x, y) => ComputeCosineSimilarity(x, y), dimensions: 5, numberOfNeighbors: 1);
+            // TODO: UMAP and clustering should be based on the combined memory curve, not just relevancy.
+            // This is a limitation of the Umap library being used.
+            var umap = new Umap((x, y) => ComputeCosineSimilarity(x, y), dimensions: 3, numberOfNeighbors: 3);
             var numberOfEpochs = umap.InitializeFit(embeddings);
             for (var i = 0; i < numberOfEpochs; i++)
                 umap.Step();
@@ -314,14 +316,17 @@ public abstract partial class Exocortex<T>
             var relatedMemoriesWithReducedDimensions = umap.GetEmbedding().Select((x, i) => new ReducedCortexMemory<T>(x.Select(x => (double)x).ToArray(), relatedMemories.ElementAt(i))).ToArray();
 
             // Cluster memories
+            // Memory clusters are similar to the prompt but different from each other.
+            // The summaries reflect that, all rooted in the same prompt but augmented with a slightly different context.
+            // Since recollections are short-term memories too, the AI sees all of them and reads between the lines, provided enough information.
             var clusterResult = HdbscanRunner.Run(new HdbscanParameters<CortexMemory<T>>
             {
                 DataSet = relatedMemoriesWithReducedDimensions, // double[][] for normal matrix or Dictionary<int, int>[] for sparse matrix
-                MinPoints = 1,
-                MinClusterSize = 2,
-                CacheDistance = false, // use caching for distance
+                MinPoints = 4,
+                MinClusterSize = 3, // Needs to stay larger than the Umap numberOfNeightbors or we get too many clusters
+                CacheDistance = false, // using caching for distance throws unexpectedly
                 MaxDegreeOfParallelism = 0, // to indicate all threads, you can specify 0.
-                DistanceFunction = new CortexMemoryDistanceSpace<T>() // See HdbscanSharp/Distance folder for more distance function
+                DistanceFunction = new CortexMemoryDistanceSpace<T>() 
             });
 
             var clusteredMemories = relatedMemoriesWithReducedDimensions.Zip(clusterResult.Labels, (memory, label) => (Memory: memory, Label: label)).ToList();
@@ -345,9 +350,10 @@ public abstract partial class Exocortex<T>
                         .OrderBy(x => x.Score)
                         .Take(LongTermMemoryRecallLimit)
                         .OrderBy(x => x.Memory.CreationTimestamp)
-                        .Select(x => x.Memory is ReducedCortexMemory<T> reduced ? reduced.OriginalMemory : x.Memory);
+                        .Select(x => x.Memory is ReducedCortexMemory<T> reduced ? reduced.OriginalMemory : x.Memory)
+                        .ToList();
 
-                    if (clusteredMemories.Count == 0)
+                    if (clusterMemories.Count == 0)
                         return;
 
                     var recollectionMemory = await SummarizeMemoryInNewContext(newMemory, clusterMemories);
