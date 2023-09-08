@@ -117,7 +117,7 @@ public abstract partial class Exocortex<T>
     /// While core memories contain dense information, the recollections offer a summarized view, making them more suitable for quick 
     /// recall and relevance in ongoing conversations.
     /// </remarks>
-    public double RecalledWithContextMemoryWeight { get; set; } = 0.5;
+    public double RecalledWithContextMemoryWeight { get; set; } = 1.5;
 
     /// <summary>
     /// The weight used for reaction memories to a new core memory, with the recollections memories as added context.
@@ -127,7 +127,7 @@ public abstract partial class Exocortex<T>
     /// <summary>
     /// The maximum number of memories recalled from long-term memory.
     /// </summary>
-    public int LongTermMemoryRecallLimit { get; set; } = 25;
+    public int LongTermMemoryRecallLimit { get; set; } = 8;
 
     /// <summary>
     /// Defines how the Exocortex should rewrite memories under the context of related memories.
@@ -346,6 +346,9 @@ public abstract partial class Exocortex<T>
                         .Take(LongTermMemoryRecallLimit)
                         .OrderBy(x => x.Memory.CreationTimestamp)
                         .Select(x => x.Memory is ReducedCortexMemory<T> reduced ? reduced.OriginalMemory : x.Memory);
+
+                    if (clusteredMemories.Count == 0)
+                        return;
 
                     var recollectionMemory = await SummarizeMemoryInNewContext(newMemory, clusterMemories);
                     var recollectionMemoryEmbedding = await GenerateEmbeddingAsync(recollectionMemory);

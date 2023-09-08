@@ -48,6 +48,6 @@ public record CortexMemory<T> : IComparable<CortexMemory<T>>
     /// <inheritdoc/>
     public override string ToString()
     {
-        return $"{CreationTimestamp}: {Content}";
+        return $"[{CreationTimestamp}] {Content}";
     }
 }
