@@ -127,7 +127,7 @@ public abstract partial class Exocortex<T>
     /// <summary>
     /// The maximum number of memories recalled from long-term memory.
     /// </summary>
-    public int LongTermMemoryRecallLimit { get; set; } = 24;
+    public int LongTermMemoryRecallLimit { get; set; } = 16;
 
     /// <summary>
     /// Defines how the Exocortex should rewrite memories under the context of related memories.
