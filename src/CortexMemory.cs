@@ -40,9 +40,9 @@ public record CortexMemory<T> : IComparable<CortexMemory<T>>
     public double[] EmbeddingVector { get; init; }
 
     /// <inheritdoc/>
-    public int CompareTo(CortexMemory<T> other)
+    public int CompareTo(CortexMemory<T>? other)
     {
-        return CreationTimestamp.CompareTo(other.CreationTimestamp);
+        return CreationTimestamp.CompareTo(other?.CreationTimestamp);
     }
 
     /// <inheritdoc/>

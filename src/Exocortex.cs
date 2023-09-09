@@ -1,5 +1,6 @@
 ﻿using HdbscanSharp.Distance;
 using HdbscanSharp.Runner;
+using OwlCore.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -32,7 +33,7 @@ public abstract partial class Exocortex<T>
     /// <summary>
     /// All memories created by the agent, in the order they were created.
     /// </summary>
-    public SortedSet<CortexMemory<T>> Memories { get; } = new SortedSet<CortexMemory<T>>();
+    public HashSet<CortexMemory<T>> Memories { get; } = new HashSet<CortexMemory<T>>();
 
     /// <summary>
     /// All short term <see cref="Memories"/> within the <see cref="ShortTermMemoryDuration"/>.
@@ -127,7 +128,7 @@ public abstract partial class Exocortex<T>
     /// <summary>
     /// The maximum number of memories recalled from long-term memory.
     /// </summary>
-    public int LongTermMemoryRecallLimit { get; set; } = 16;
+    public int LongTermMemoryRecallLimit { get; set; } = 8;
 
     /// <summary>
     /// Defines how the Exocortex should rewrite memories under the context of related memories.
@@ -307,7 +308,7 @@ public abstract partial class Exocortex<T>
             // UMAP Reduction
             // TODO: UMAP and clustering should be based on the combined memory curve, not just relevancy.
             // This is a limitation of the Umap library being used.
-            var umap = new Umap((x, y) => ComputeCosineSimilarity(x, y), dimensions: 3, numberOfNeighbors: 3);
+            var umap = new Umap((x, y) => ComputeCosineSimilarity(x, y), dimensions: 5, numberOfNeighbors: 6);
             var numberOfEpochs = umap.InitializeFit(embeddings);
             for (var i = 0; i < numberOfEpochs; i++)
                 umap.Step();
@@ -322,25 +323,22 @@ public abstract partial class Exocortex<T>
             var clusterResult = HdbscanRunner.Run(new HdbscanParameters<CortexMemory<T>>
             {
                 DataSet = relatedMemoriesWithReducedDimensions, // double[][] for normal matrix or Dictionary<int, int>[] for sparse matrix
-                MinPoints = 4,
+                MinPoints = 1,
                 MinClusterSize = 3, // Needs to stay larger than the Umap numberOfNeightbors or we get too many clusters
                 CacheDistance = false, // using caching for distance throws unexpectedly
                 MaxDegreeOfParallelism = 0, // to indicate all threads, you can specify 0.
-                DistanceFunction = new CortexMemoryDistanceSpace<T>() 
+                DistanceFunction = new CortexMemoryDistanceSpace<T>()
             });
 
             var clusteredMemories = relatedMemoriesWithReducedDimensions.Zip(clusterResult.Labels, (memory, label) => (Memory: memory, Label: label)).ToList();
 
-            var tasks = new List<Task>();
-            var results = new List<CortexMemory<T>>();
-
-            foreach (var cluster in clusterResult.Labels.Distinct())
+            foreach (var batchOfClusters in clusterResult.Labels.Distinct().Batch(3))
             {
-                tasks.Add(Task.Run(async () =>
+                var results = await batchOfClusters.InParallel(async cluster =>
                 {
                     // Skip noise points
                     if (cluster == -1)
-                        return;
+                        return null;
 
                     // Retrieve original (non-reduced) memory
                     // Order by memory creation time.
@@ -354,21 +352,20 @@ public abstract partial class Exocortex<T>
                         .ToList();
 
                     if (clusterMemories.Count == 0)
-                        return;
+                        return null;
 
                     var recollectionMemory = await SummarizeMemoryInNewContext(newMemory, clusterMemories);
                     var recollectionMemoryEmbedding = await GenerateEmbeddingAsync(recollectionMemory);
                     var memoryOfRecollection = new RecollectionCortexMemory<T>(recollectionMemory, recollectionMemoryEmbedding, clusterMemories);
 
                     Memories.Add(memoryOfRecollection);
-                    results.Add(memoryOfRecollection);
-                }));
+                    return memoryOfRecollection;
+                });
+
+                foreach (var item in results)
+                    if (item is not null)
+                        yield return item;
             }
-
-            await Task.WhenAll(tasks);
-
-            foreach (var item in results)
-                yield return item;
         }
 
         // ---------------

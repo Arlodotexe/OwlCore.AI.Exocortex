@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFramework>netstandard2.0</TargetFramework>
+		<TargetFrameworks>netstandard2.0;net7.0</TargetFrameworks>
 		<Nullable>enable</Nullable>
 		<LangVersion>10.0</LangVersion>
 		<WarningsAsErrors>nullable</WarningsAsErrors>
@@ -18,7 +18,7 @@
 		<Product>OwlCore</Product>
 		<Description></Description>
 		<PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
-		<PackageIcon>logo.png</PackageIcon>
+		<PackageIcon>icon.png</PackageIcon>
 		<PackageProjectUrl>https://github.com/Arlodotexe/OwlCore.AI.Exocortex</PackageProjectUrl>
 		<PackageReleaseNotes>
 --- 0.0.0 ---
@@ -47,6 +47,17 @@ Initial release of OwlCore.AI.Exocortex.
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <None Remove="icon.png" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Content Include="icon.png">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </Content>
+	</ItemGroup>
+
+	<ItemGroup>
 		<None Include="LICENSE.txt">
 			<Pack>True</Pack>
 			<PackagePath></PackagePath>
@@ -57,18 +68,12 @@ Initial release of OwlCore.AI.Exocortex.
 		<PackageReference Include="HdbscanSharp" Version="2.0.0" />
 		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="7.0.0" />
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
+		<PackageReference Include="OwlCore.Extensions" Version="0.5.0" />
 		<PackageReference Include="PolySharp" Version="1.13.2">
 		  <PrivateAssets>all</PrivateAssets>
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
 		<PackageReference Include="System.Linq.Async" Version="6.0.1" />
 		<PackageReference Include="UMAP" Version="1.0.34015" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <None Update="logo.png">
-	    <Pack>True</Pack>
-	    <PackagePath>\</PackagePath>
-	  </None>
 	</ItemGroup>
 </Project>
