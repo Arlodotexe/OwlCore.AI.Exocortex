@@ -65,15 +65,23 @@ public abstract partial class Exocortex<T>
     {
         get
         {
-            // Function: Logarithmic function of long-term memory duration
-            // Rationale: Represents the point at which short-term memories start 
-            // transitioning to long-term memories. As more long-term memories accumulate, 
-            // the threshold decreases, leading short-term memories to decay faster and long-term memories to decay slower.
-            const double T_max = 1;
+            // Maximum possible value for the threshold.
+            double T_max = 1;
+
+            // Minimum possible value for the threshold, taken from the LongTermDecayThreshold.
             double T_min = LongTermDecayThreshold;
+
+            // Duration of long-term memory in hours.
             double D_lt = LongTermMemoryDuration.TotalHours;
 
-            return T_max - (T_max - T_min) * Math.Log(1 + D_lt);
+            // Compute the logarithmic term. The "+ 1" inside the logarithm ensures that the value 
+            // inside the log is always greater than 1, preventing negative results.
+            double logTerm = Math.Log(1 + D_lt);
+
+            // Calculate the ShortTermDecayThreshold using the formula. The result is designed to 
+            // be between T_min and T_max based on the duration of the long-term memory.
+            // The longer the duration, the closer the threshold will be to T_max.
+            return T_min + (T_max - T_min) / (1 + logTerm);
         }
     }
 
@@ -136,7 +144,7 @@ public abstract partial class Exocortex<T>
     /// <remarks>
     /// Lowering this number will raise the number of clusters created.
     /// </remarks>
-    public double MinimumMemoryRecallWeight { get; set; } = 0.4;
+    public double MinimumMemoryRecallWeight { get; set; } = 0.5;
 
     /// <summary>
     /// Defines how the Exocortex should rewrite memories under the context of related memories.
@@ -391,8 +399,13 @@ public abstract partial class Exocortex<T>
         // ---------------
         // Create final reaction to the new memory, but with recent internal reflections.
         // Recency weights ensure recent recollections are prioritized over old ones.
-        // Relevance weights ensure we can filter through large volumes of incoming information.
-        var reaction = await ReactToMemoryAsync(newMemory, ShortTermMemories);
+        // Relevance weights ensure we can filter through large volumes of incoming information, as well as clusters with no useful information.
+        var reactionMemories = Memories
+            .Select(x => (Memory: x, Score: ComputeMemoryWeight(x, newMemory.EmbeddingVector)))
+            .Where(x => x.Score > 0.99)
+            .Select(x => x.Memory);
+
+        var reaction = await ReactToMemoryAsync(newMemory, reactionMemories);
         var reactionEmbedding = await GenerateEmbeddingAsync(reaction);
 
         var reactionMemory = new CortexMemory<T>(reaction, reactionEmbedding)
