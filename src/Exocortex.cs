@@ -133,7 +133,10 @@ public abstract partial class Exocortex<T>
     /// <summary>
     /// A value between 0-1 indicating the minimum <see cref="ComputeMemoryWeight(CortexMemory{T}, double[])"/> value between a short-term memory and a long-term memory for the long-term memory to be included for clustering and considered for recollections.
     /// </summary>
-    public double MinimumMemoryRecallWeight { get; set; } = 0.7;
+    /// <remarks>
+    /// Lowering this number will raise the number of clusters created.
+    /// </remarks>
+    public double MinimumMemoryRecallWeight { get; set; } = 0.4;
 
     /// <summary>
     /// Defines how the Exocortex should rewrite memories under the context of related memories.
@@ -323,7 +326,7 @@ public abstract partial class Exocortex<T>
             // UMAP Reduction
             // TODO: UMAP and clustering should be based on the combined memory curve, not just relevancy.
             // This is a limitation of the Umap library being used.
-            var umap = new Umap((x, y) => ComputeCosineSimilarity(x, y), dimensions: 5, numberOfNeighbors: 6);
+            var umap = new Umap((x, y) => ComputeCosineSimilarity(x, y), dimensions: 3, numberOfNeighbors: 1);
             var numberOfEpochs = umap.InitializeFit(embeddings);
             for (var i = 0; i < numberOfEpochs; i++)
                 umap.Step();
