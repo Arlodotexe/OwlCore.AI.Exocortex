@@ -18,12 +18,12 @@ namespace OwlCore.AI.Exocortex;
 /// ongoing conversation by constantly updating its understanding based on new information.
 /// </summary>
 /// <remarks>
-/// The Exocortex manages a collection of memories, each represented by embedding vectors and creation timestamps.
+/// The Exocortex manages a collection of immutable memories, each represented by embedding vectors and creation timestamps.
 /// 
 /// Key Features:
 /// 1. **Memory Decay**: Memories in the Exocortex decay over time, reflecting the human tendency to recall recent memories more vividly than older ones. This decay is modeled using an an intricate balance between duration, decay rate and decay thresholds for both short-term and long-term memory.
 /// 3. **Memory Clustering**: Memories are grouped based on their content similarity. Within each cluster, a representative memory is chosen based on both its relevance to the current query and its recency.
-/// 4. **Memory Retrieval**: The act of recalling a memory can modify its context and interpretation, reflecting the plastic nature of human memories. This process ensures that past memories are continually reframed in light of new experiences.
+/// 4. **Memory Retrieval**: The act of recalling a memory can become a memory itself. This process ensures that past memories are continually reframed in light of new experiences.
 /// 
 /// This class is designed to be adaptable across various applications, allowing for interaction with different types of memory content (e.g., text, audio, visual).
 /// </remarks>
@@ -128,7 +128,7 @@ public abstract partial class Exocortex<T>
     /// <summary>
     /// The maximum size of a cluster during recollection and consolidation. This is the number of messages that will be summarized.
     /// </summary>
-    public int ClusterSizeLimit { get; set; } = 8;
+    public int RecallClusterSizeLimit { get; set; } = 8;
 
     /// <summary>
     /// A value between 0-1 indicating the minimum <see cref="ComputeMemoryWeight(CortexMemory{T}, double[])"/> value between a short-term memory and a long-term memory for the long-term memory to be included for clustering and considered for recollections.
@@ -339,7 +339,7 @@ public abstract partial class Exocortex<T>
             {
                 DataSet = relatedMemoriesWithReducedDimensions, // double[][] for normal matrix or Dictionary<int, int>[] for sparse matrix
                 MinPoints = 1,
-                MinClusterSize = 3, // Needs to stay larger than the Umap numberOfNeightbors or we get too many clusters
+                MinClusterSize = 2,
                 CacheDistance = false, // using caching for distance throws unexpectedly
                 MaxDegreeOfParallelism = 0, // to indicate all threads, you can specify 0.
                 DistanceFunction = new CortexMemoryDistanceSpace<T>()
@@ -361,7 +361,7 @@ public abstract partial class Exocortex<T>
                         .Where(x => x.Label == cluster)
                         .Select(x => (Memory: x.Memory, Score: ComputeMemoryWeight(x.Memory, rawMemoryEmbedding)))
                         .OrderByDescending(x => x.Score)
-                        .Take(ClusterSizeLimit)
+                        .Take(RecallClusterSizeLimit)
                         .OrderBy(x => x.Memory.CreationTimestamp)
                         .Select(x => x.Memory is ReducedCortexMemory<T> reduced ? reduced.OriginalMemory : x.Memory)
                         .ToList();
