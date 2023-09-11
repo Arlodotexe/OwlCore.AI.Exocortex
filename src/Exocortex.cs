@@ -126,7 +126,7 @@ public abstract partial class Exocortex<T>
     /// While core memories contain dense information, the recollections offer a summarized view, making them more suitable for quick 
     /// recall and relevance in ongoing conversations.
     /// </remarks>
-    public double RecalledWithContextMemoryWeight { get; set; } = 1.5;
+    public double RecalledWithContextMemoryWeight { get; set; } = 1.3;
 
     /// <summary>
     /// The weight used for reaction memories to a new core memory, with the recollections memories as added context.
@@ -134,9 +134,14 @@ public abstract partial class Exocortex<T>
     public double ReactionMemoryWeight { get; set; } = 1;
 
     /// <summary>
-    /// The maximum size of a cluster during recollection and consolidation. This is the number of messages that will be summarized.
+    /// The maximum size of a cluster during recollection and consolidation. 
+    /// </summary> 
+    public int MaxRelatedRecollectionClusterMemories { get; set; } = 8;
+
+    /// <summary>
+    /// The max number of memories included in reaction formation.
     /// </summary>
-    public int RecallClusterSizeLimit { get; set; } = 8;
+    public int MaxRelatedReactionMemories { get; set; } = 12;
 
     /// <summary>
     /// A value between 0-1 indicating the minimum <see cref="ComputeMemoryWeight(CortexMemory{T}, double[])"/> value between a short-term memory and a long-term memory for the long-term memory to be included for clustering and considered for recollections.
@@ -144,7 +149,7 @@ public abstract partial class Exocortex<T>
     /// <remarks>
     /// Lowering this number will raise the number of clusters created.
     /// </remarks>
-    public double MinimumMemoryRecallWeight { get; set; } = 0.5;
+    public double MinimumMemoryRecallWeight { get; set; } = 0.75;
 
     /// <summary>
     /// Defines how the Exocortex should rewrite memories under the context of related memories.
@@ -372,7 +377,7 @@ public abstract partial class Exocortex<T>
                         .Where(x => x.Label == cluster)
                         .Select(x => (Memory: x.Memory, Score: ComputeMemoryWeight(x.Memory, rawMemoryEmbedding)))
                         .OrderByDescending(x => x.Score)
-                        .Take(RecallClusterSizeLimit)
+                        .Take(MaxRelatedRecollectionClusterMemories)
                         .OrderBy(x => x.Memory.CreationTimestamp)
                         .Select(x => x.Memory is ReducedCortexMemory<T> reduced ? reduced.OriginalMemory : x.Memory)
                         .ToList();
@@ -402,7 +407,8 @@ public abstract partial class Exocortex<T>
         // Relevance weights ensure we can filter through large volumes of incoming information, as well as clusters with no useful information.
         var reactionMemories = Memories
             .Select(x => (Memory: x, Score: ComputeMemoryWeight(x, newMemory.EmbeddingVector)))
-            .Where(x => x.Score > 0.99)
+            .OrderByDescending(x => x.Score)
+            .Take(MaxRelatedReactionMemories)
             .Select(x => x.Memory);
 
         var reaction = await ReactToMemoryAsync(newMemory, reactionMemories);
