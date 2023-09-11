@@ -126,9 +126,14 @@ public abstract partial class Exocortex<T>
     public double ReactionMemoryWeight { get; set; } = 1;
 
     /// <summary>
-    /// The maximum number of memories recalled from long-term memory.
+    /// The maximum size of a cluster during recollection and consolidation. This is the number of messages that will be summarized.
     /// </summary>
-    public int LongTermMemoryRecallLimit { get; set; } = 8;
+    public int ClusterSizeLimit { get; set; } = 8;
+
+    /// <summary>
+    /// A value between 0-1 indicating the minimum <see cref="ComputeMemoryWeight(CortexMemory{T}, double[])"/> value between a short-term memory and a long-term memory for the long-term memory to be included for clustering and considered for recollections.
+    /// </summary>
+    public double MinimumMemoryRecallWeight { get; set; } = 0.7;
 
     /// <summary>
     /// Defines how the Exocortex should rewrite memories under the context of related memories.
@@ -295,10 +300,20 @@ public abstract partial class Exocortex<T>
         // Remember the act of recalling these memories, and roll reflections from one recollection to the next.
         // Roughly emulates the act of remembering and reflecting on thoughts before responding.
         // Context is rolled from the original memory, through a timeline of the most relevant and recent memories, and out into a "final thought".
-        var relatedMemories = LongTermMemories
-                .Select(memory => (Memory: memory, Score: ComputeMemoryWeight(memory, rawMemoryEmbedding)))
-                .OrderBy(tuple => tuple.Score)
-                .Select(x => x.Memory); // Order memories by their score
+        var relatedMemories = new HashSet<CortexMemory<T>>();
+
+        // Gather memories
+        // Clusters are formed from all long-term memories  to short-term memories.
+        foreach (var memory in ShortTermMemories)
+        {
+            var relatedToShortTermMemory = LongTermMemories
+                .Select(x => (Memory: x, Score: ComputeMemoryWeight(x, memory.EmbeddingVector)))
+                .Where(x => x.Score > MinimumMemoryRecallWeight)
+                .Select(x => x.Memory);
+
+            foreach (var related in relatedToShortTermMemory)
+                relatedMemories.Add(related);
+        }
 
         if (relatedMemories.Any())
         {
@@ -345,8 +360,8 @@ public abstract partial class Exocortex<T>
                     var clusterMemories = clusteredMemories
                         .Where(x => x.Label == cluster)
                         .Select(x => (Memory: x.Memory, Score: ComputeMemoryWeight(x.Memory, rawMemoryEmbedding)))
-                        .OrderBy(x => x.Score)
-                        .Take(LongTermMemoryRecallLimit)
+                        .OrderByDescending(x => x.Score)
+                        .Take(ClusterSizeLimit)
                         .OrderBy(x => x.Memory.CreationTimestamp)
                         .Select(x => x.Memory is ReducedCortexMemory<T> reduced ? reduced.OriginalMemory : x.Memory)
                         .ToList();
