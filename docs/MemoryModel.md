@@ -4,6 +4,8 @@ The Exocortex's memory model prioritizes both the recency and relevance of memor
 
 ## Memory Weighting Mechanism
 
+The curves for short-term and long-term memories are exponential and logarithmic respectively, normalizing and adapting to both the oldest long-term memory and the short-term memory duration specified by the user.
+
 In the Exocortex, each memory's weight is determined by three factors:
 1. **Relevance**: Measured by the cosine similarity between the query embedding for two memories, this captures the semantic distance. We grab all memories related to content in the short-term context and cluster them together as recollections, adding to the short term context. 
 2. **Recency**: A modified forgetting curve that differentiates between short-term and long-term memories and dynamically adjusts to maintain consistent memory curves as the Exocortex grows, while capturing how the strength of a memory decays over time.
@@ -28,8 +30,6 @@ The nostalgiaWeight is an inverse of the recency score, acting as a counterbalan
 Further, it was noted that if you observe these curves at the ages of early adolescence (10-14) to young adult (16-20), the intersection point of the recency and nostalgia weight (where the nostalgia weight first kicks in) will slowly moves into the short-term memory, slowing as it approaches the age of ~25-30. This gives it a small relevance boost to memories that are about to fade rapidly, and may contribute to a heightened ability to retain lots of relevant, quickly fading details even in larger contexts.
 
 This requires further research, but has the potential to negate the ill effects of increased short-term memory density in elderly ages. See [these plots](./5days%20to%2030years).
-
-The curves for short-term and long-term memories are exponential and logarithmic respectively, normalizing and adapting to both the oldest long-term memory and the short-term memory duration specified by the user.
 
 ## Finished curves
 
