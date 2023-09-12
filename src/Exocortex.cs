@@ -138,14 +138,6 @@ public abstract partial class Exocortex<T>
     public int MaxRelatedReactionMemories { get; set; } = 12;
 
     /// <summary>
-    /// A value between 0-1 indicating the minimum <see cref="ComputeMemoryWeight(CortexMemory{T}, double[])"/> value between a short-term memory and a long-term memory for the long-term memory to be included for clustering and considered for recollections.
-    /// </summary>
-    /// <remarks>
-    /// Lowering this number will raise the number of clusters created.
-    /// </remarks>
-    public double MinimumMemoryRecallWeight { get; set; } = 0.7;
-
-    /// <summary>
     /// Defines how the Exocortex should rewrite memories under the context of related memories.
     /// </summary>
     /// <param name="memory">The raw memory being experienced.</param>
@@ -261,7 +253,7 @@ public abstract partial class Exocortex<T>
     {
         var relevance = ComputeCosineSimilarity(memory.EmbeddingVector, queryEmbedding);
         var recency = ComputeRecencyScore(memory.CreationTimestamp);
-        
+
         // Inverse of recency.
         // A slight boost to the end of short-term memory will develop after a few years. Feature or bug? Adds attention to the end of the rolling context, may be good to keep.
         var nostalgia = 1 - recency;
@@ -322,8 +314,9 @@ public abstract partial class Exocortex<T>
         foreach (var memory in ShortTermMemories)
         {
             var relatedToShortTermMemory = LongTermMemories
-                .Select(x => (Memory: x, Score: ComputeMemoryWeight(x, memory.EmbeddingVector)))
-                .Where(x => x.Score > MinimumMemoryRecallWeight)
+                .Select(x => (Memory: x, Score: ComputeMemoryWeight(memory, x.EmbeddingVector)))
+                .OrderByDescending(x => x.Score)
+                .Take(MaxRelatedRecollectionClusterMemories)
                 .Select(x => x.Memory);
 
             foreach (var related in relatedToShortTermMemory)
@@ -354,7 +347,7 @@ public abstract partial class Exocortex<T>
             {
                 DataSet = relatedMemoriesWithReducedDimensions, // double[][] for normal matrix or Dictionary<int, int>[] for sparse matrix
                 MinPoints = 1,
-                MinClusterSize = 2,
+                MinClusterSize = 5,
                 CacheDistance = false, // using caching for distance throws unexpectedly
                 MaxDegreeOfParallelism = 0, // to indicate all threads, you can specify 0.
                 DistanceFunction = new CortexMemoryDistanceSpace<T>()
