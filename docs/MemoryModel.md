@@ -6,7 +6,7 @@ The Exocortex's memory model prioritizes both the recency and relevance of memor
 
 In the Exocortex, each memory's weight is determined by three factors:
 1. **Relevance**: Measured by the cosine similarity between the query embedding for two memories, this captures the semantic distance. We grab all memories related to content in the short-term context and cluster them together as recollections, adding to the short term context. 
-2. **Recency**: A modified forgetting curve that differentiates between short-term and long-term memories and dynamically adjusts to maintain consistent memory curves over as the Exocortex grows, while capturing how the strength of a memory decays over time.
+2. **Recency**: A modified forgetting curve that differentiates between short-term and long-term memories and dynamically adjusts to maintain consistent memory curves as the Exocortex grows, while capturing how the strength of a memory decays over time.
 3. **Type**: Different types of memories (e.g., core, recalled with context, reaction) might have different weights that can be set. Recollections often contain a broader context, and are given a slight boost over the more detailed core or reaction memories.
 
 ### Adjusting for Relevance over Recency
