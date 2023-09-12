@@ -210,7 +210,6 @@ public abstract partial class Exocortex<T>
         // Computes the recency score of a memory based on its creation timestamp 
         // using either the exponential decay model (short-term memory) or the 
         // reversed logarithmic decay model (long-term memory).
-
         double currentTime = (DateTime.Now - creationTimestamp).TotalHours;
 
         if (currentTime <= ShortTermMemoryDuration.TotalHours)
