@@ -15,7 +15,7 @@ In the Exocortex, each memory's weight is determined by three factors:
 
 To ensure that older memories are given an equal chance of being recalled if they are relevant, the weighting formula was adjusted.
 
-In the original paper "Symbiosis of Artificial and Human Intelligence"[^3], they directly multiplying the weights:
+In the original paper "Generative Agents: Interactive Simulacra of Human Behavior"[^1], they directly multiplying the weights:
 
 ```cs
 var finalWeight = relevance * recency * typeWeight;
@@ -151,4 +151,4 @@ By grouping memories and constantly updating its understanding based on new reco
 By following this structured approach, the Exocortex ensures that memories are not only stored efficiently but also recalled in a manner that preserves their context and relevance.
 </details>
 
-[^3]: Arlo Godfrey: Exploring Symbiosis of Artificial and Human Intelligence. [brain-dump/6](https://github.com/Arlodotexe/brain-dump/issues/6)
+[^1]: Joon Sung Park and Joseph C. O'Brien and Carrie J. Cai and Meredith Ringel Morris and Percy Liang and Michael S. Bernstein (2023). Generative Agents: Interactive Simulacra of Human Behavior. arXiv preprint [arXiv:2304.03442](https://arxiv.org/abs/2304.03442).
