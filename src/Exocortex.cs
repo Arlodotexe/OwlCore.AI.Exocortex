@@ -362,8 +362,7 @@ public abstract partial class Exocortex<T>
                     if (cluster == -1)
                         return null;
 
-                    // Retrieve original (non-reduced) memory
-                    // Order by memory creation time.
+                    // Retrieve original (non-reduced) memories in cluster
                     var clusterMemories = clusteredMemories
                         .Where(x => x.Label == cluster)
                         .Select(x => (Memory: x.Memory, Score: ComputeMemoryWeight(x.Memory, rawMemoryEmbedding)))
