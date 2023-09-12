@@ -13,7 +13,9 @@ In the Exocortex, each memory's weight is determined by three factors:
 
 ### Adjusting for Relevance over Recency
 
-To ensure that older memories are given an equal chance of being recalled if they are relevant, the weighting formula was adjusted. Instead of directly multiplying the weights:
+To ensure that older memories are given an equal chance of being recalled if they are relevant, the weighting formula was adjusted.
+
+In the original paper "Symbiosis of Artificial and Human Intelligence"[^3], they directly multiplying the weights:
 
 ```cs
 var finalWeight = relevance * recency * typeWeight;
@@ -148,3 +150,5 @@ By grouping memories and constantly updating its understanding based on new reco
 
 By following this structured approach, the Exocortex ensures that memories are not only stored efficiently but also recalled in a manner that preserves their context and relevance.
 </details>
+
+[^3]: Arlo Godfrey: Exploring Symbiosis of Artificial and Human Intelligence. [brain-dump/6](https://github.com/Arlodotexe/brain-dump/issues/6)
