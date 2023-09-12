@@ -19,12 +19,6 @@ namespace OwlCore.AI.Exocortex;
 /// </summary>
 /// <remarks>
 /// The Exocortex manages a collection of immutable memories, each represented by embedding vectors and creation timestamps.
-/// 
-/// Key Features:
-/// 1. **Memory Decay**: Memories in the Exocortex decay over time, reflecting the human tendency to recall recent memories more vividly than older ones. This decay is modeled using an an intricate balance between duration, decay rate and decay thresholds for both short-term and long-term memory.
-/// 3. **Memory Clustering**: Memories are grouped based on their content similarity. Within each cluster, a representative memory is chosen based on both its relevance to the current query and its recency.
-/// 4. **Memory Retrieval**: The act of recalling a memory can become a memory itself. This process ensures that past memories are continually reframed in light of new experiences.
-/// 
 /// This class is designed to be adaptable across various applications, allowing for interaction with different types of memory content (e.g., text, audio, visual).
 /// </remarks>
 /// <typeparam name="T">The type of raw content the memories hold.</typeparam>
@@ -149,7 +143,7 @@ public abstract partial class Exocortex<T>
     /// <remarks>
     /// Lowering this number will raise the number of clusters created.
     /// </remarks>
-    public double MinimumMemoryRecallWeight { get; set; } = 0.75;
+    public double MinimumMemoryRecallWeight { get; set; } = 0.7;
 
     /// <summary>
     /// Defines how the Exocortex should rewrite memories under the context of related memories.
@@ -267,6 +261,11 @@ public abstract partial class Exocortex<T>
     {
         var relevance = ComputeCosineSimilarity(memory.EmbeddingVector, queryEmbedding);
         var recency = ComputeRecencyScore(memory.CreationTimestamp);
+        
+        // Inverse of recency.
+        // A slight boost to the end of short-term memory will develop after a few years. Feature or bug? Adds attention to the end of the rolling context, may be good to keep.
+        var nostalgia = 1 - recency;
+
         var typeWeight = memory.Type switch
         {
             CortexMemoryType.Core => CoreMemoryWeight,
@@ -275,7 +274,7 @@ public abstract partial class Exocortex<T>
             _ => throw new NotImplementedException(),
         };
 
-        var finalWeight = relevance * recency * typeWeight;
+        var finalWeight = ((nostalgia * relevance) + recency) * typeWeight;
 
         if (finalWeight > 2 || finalWeight < 0)
             throw new ArgumentOutOfRangeException(nameof(finalWeight), "Memory weight out of range.");
@@ -319,7 +318,7 @@ public abstract partial class Exocortex<T>
         var relatedMemories = new HashSet<CortexMemory<T>>();
 
         // Gather memories
-        // Clusters are formed from all long-term memories  to short-term memories.
+        // Clusters are formed from all long-term memories using similiarity to short-term memories.
         foreach (var memory in ShortTermMemories)
         {
             var relatedToShortTermMemory = LongTermMemories

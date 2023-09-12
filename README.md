@@ -10,29 +10,42 @@ Inspired by the paper "Generative Agents: Interactive Simulacra of Human Behavio
 > Our finished research on memory curves now available in [docs/MemoryModel.md](https://github.com/Arlodotexe/OwlCore.AI.Exocortex/blob/main/docs/MemoryModel.md)
 
 ## **An Echo of Experiences**
-**Definition**: The Exocortex is a **remembrance agent**, a generative agent specialized in remembering a narrative of observed events over time.
+**Definition**: The Exocortex is a **remembrance agent**, a generative agent designed to simulate the human brain's memory recall and consolidation processes.
 
-**Continuity Across Memories**: As new events or memory entries occur, the system retrieves past memories based on factors like relevance and various time-based weights, and combines them with the new input. This provides structured, chronological long-term and short-term context for the new memory entry.
+The Exocortex operates on a "rolling context" mechanism, ensuring that the most recent and relevant memories are prioritized, mimicking the human brain's ability to keep track of an ongoing conversation by constantly updating its understanding based on new information.
 
-**Enhancing communication**: The immediate application and likely testing grounds will be to create a timeline of real events and notes in a specific domain to create a basic prototype, with the aim to identify and eliminate communication bottlenecks. Through this, constructs can collaborate or exchange knowledge and experiences autonomously.
+**Privacy**: Users can swap the AI model and can create specialized exocortices for different domains.
 
-**Privacy**: The exact AI model used should be swappable by the end user. Users should be able to create specialized or separated exocortexes for work and personal life.
+### Memory Architecture
+This architecture is inspired by "Generative Agents: Interactive Simulacra of Human Behavior", with modifications to better cater to the nuances of human memory. 
 
-### Memory Stream Architecture
-The memory stream is highly inspired by that in "Generative Agents: Interactive Simulacra of Human Behavior", but with some small changes and big additions. 
+For more details, see [docs/MemoryModel.md](https://github.com/Arlodotexe/OwlCore.AI.Exocortex/blob/main/docs/MemoryModel.md).
 
-- **Initial Memory Values**: 
-    - **Recency**: Each new memory is timestamped upon creation. Recency decays over time, using an exponential decay function (e.g., decay factor of 0.995) based on the number of hours since the memory was last retrieved.
-    - **Relevance**: Initialized based on the context in which the memory was created, and updated based on the similarity between the memory’s embedding vector and the current context’s embedding vector.
+### Memory Weighting Formula
 
-- **Final Retrieval Score**: The retrieval function scores all memories as a weighted combination of recency, importance, and relevance. Scores are normalized to the range of [0, 1] using min-max scaling. In the current implementation, all weights (𝛼) are set to 1. The top-ranked memories that fit within the language model’s context window are included in the prompt.
+Memories in the Exocortex decay over time, reflecting the human tendency to recall recent memories more vividly than older ones. This decay is modeled using an intricate balance between duration, decay rate, and decay thresholds for both short-term and long-term memory.
 
-**Recollections**: Removes the need to include the full memory transcript in the context window. 
-  - By treating memory recollection as a new observation, it can add new context to old memories without overwriting them, and it boosts the odds of being recalled again in the near future, mimicking an organic working memory.
-  - Doing this also changes how things are remembered through the lens of the active context.
-  - This is reminiscent of how human memory works: recalling a memory can change how it is remembered, and the act of remembering can itself become a new memory.
-  - We use recollections to summarize the current context each turn, and store that as a memory. These are more likely to be retrieved from long term memory.
-  - Similar recollection memories are clustered together during long term recall. From each cluster, we use the memory with the highest relevance as additional context to the current conversation (short term memory)
+The weighting formula prioritizes both the recency and relevance of memories, ensuring a balance between recalling recent experiences and older but more relevant memories.
+
+The final weight of a memory is determined by factors such as relevance, recency, and type. By adjusting the weight using an inverse of the recency score, the Exocortex ensures that while recent memories are naturally prioritized, older but relevant memories aren't overshadowed.
+
+For more details, see [docs/MemoryModel.md](https://github.com/Arlodotexe/OwlCore.AI.Exocortex/blob/main/docs/MemoryModel.md).
+
+### Clustering, Consolidation and Recollections
+
+- **Recollections as Short-term Memories**: By recalling a cluster of memories, the system also remembers the act of recalling within the context of the short-term memories. Recollections in the Exocortex are used for transferring memories from long-term into short-term and for building broad, context-rich memories that are highly suited for future recollection.
+  
+- **Summarizing the Context**: Recollections are used to summarize memories that are relevant to the short-term memories with respect to a new input, storing that as a new recollection memory. These are more likely to be retrieved from long-term memory, and similar recollection memories are clustered together during long-term recall.
+
+For more details, see [docs/MemoryModel.md](https://github.com/Arlodotexe/OwlCore.AI.Exocortex/blob/main/docs/MemoryModel.md).
+
+### Memory Clustering
+
+1. **Formation of Clusters**: When a new memory or prompt is introduced, the Exocortex identifies memories that are similar to the short-term memories, including the new prompt. These memories, though rooted in the same context, might differ slightly from each other.
+2. **Memory Summaries**: For each memory cluster, a representative summary is created. These summaries are reflections of the memories within the cluster, rooted in the same context of the prompt but augmented with slight variations based on the memories within the cluster.
+3. **Recollections as Short-term Memories**: An interesting aspect of the Exocortex's memory model is that recollections themselves are treated as short-term memories. This means that when the AI recalls a memory, it also remembers the act of recalling. This layered approach ensures that the AI not only recalls past memories but also continually reframes them in light of new experiences. 
+
+For more details, see [docs/MemoryModel.md](https://github.com/Arlodotexe/OwlCore.AI.Exocortex/blob/main/docs/MemoryModel.md).
 
 ## Install
 
