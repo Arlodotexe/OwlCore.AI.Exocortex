@@ -23,7 +23,9 @@ var nostalgiaWeight = 1 - ComputeRecencyScore(memory.CreationTimestamp); // Inve
 var finalWeight = ((relevance * nostalgiaWeight) + recency) * typeWeight;
 ```
 
-The nostalgiaWeight is an inverse of the recency score, acting as a counterbalance. This change ensures that while recent memories are naturally prioritized, older but relevant memories aren't overshadowed. The shift from multiplication to a weighted sum allows each factor to contribute more independently to the final weight.
+The nostalgiaWeight is an inverse of the recency score, acting as a counterbalance. This change ensures that while recent memories are naturally prioritized, older but relevant memories aren't overshadowed. By taking a weight sum instead, a low recency score won't bring down a high relevancy score.
+
+Further, it was noted that if you bring the exocortex to a certain age, then the intersection point of the recency and nostalgia weight, where the nostalgia weight first kicks in, slowly moves into the short-term memory. This gives it a small relevance boost to memories that are about to fade rapidly, and made contribute to a heightened ability to retain only relevant details from the current context. This requires further research, but has the potential to negate the ill effects of increased short-term memory density in middle-to-elderly ages. See [these plots](./5days%20to%2030years).
 
 The curves for short-term and long-term memories are exponential and logarithmic respectively, normalizing and adapting to both the oldest long-term memory and the short-term memory duration specified by the user.
 
@@ -40,7 +42,6 @@ Plotted with a long-term decay threshold of 0.1 and a short-term duration of 25 
 | Middle Age                     | Elderly                      |
 | ------------------------------ | ---------------------------- |
 | ![Middle Age](combined_memory_decay_2x2_Middle_Age.png) | ![Elderly](combined_memory_decay_2x2_Elderly.png) |
-
 
 ## Decay Rate and Threshold functions 
 
