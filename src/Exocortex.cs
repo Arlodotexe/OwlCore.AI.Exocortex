@@ -135,7 +135,7 @@ public abstract partial class Exocortex<T>
     /// <summary>
     /// The max number of memories included in reaction formation.
     /// </summary>
-    public int MaxRelatedReactionMemories { get; set; } = 12;
+    public int MaxRelatedReactionMemories { get; set; } = 20;
 
     /// <summary>
     /// Defines how the Exocortex should rewrite memories under the context of related memories.
@@ -396,11 +396,12 @@ public abstract partial class Exocortex<T>
         // Create final reaction to the new memory, but with recent internal reflections.
         // Recency weights ensure recent recollections are prioritized over old ones.
         // Relevance weights ensure we can filter through large volumes of incoming information, as well as clusters with no useful information.
-        var reactionMemories = Memories
+        var reactionMemories = ShortTermMemories
             .Select(x => (Memory: x, Score: ComputeMemoryWeight(x, newMemory.EmbeddingVector)))
             .OrderByDescending(x => x.Score)
             .Take(MaxRelatedReactionMemories)
-            .Select(x => x.Memory);
+            .Select(x => x.Memory)
+            .OrderBy(x => x.CreationTimestamp);
 
         var reaction = await ReactToMemoryAsync(newMemory, reactionMemories);
         var reactionEmbedding = await GenerateEmbeddingAsync(reaction);
