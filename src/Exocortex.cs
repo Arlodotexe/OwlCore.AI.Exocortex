@@ -128,9 +128,27 @@ public abstract partial class Exocortex<T>
     public double ReactionMemoryWeight { get; set; } = 1;
 
     /// <summary>
+    /// Represents the number of dimensions used for UMAP (Uniform Manifold Approximation and Reduction), as well as HDBSCAN. Defaults to 3 dimensions, results in an average of about 3 clusters.
+    /// </summary>
+    /// <remarks>
+    /// Adjusting the number of dimensions can have various implications:
+    /// 
+    /// - **2 Dimensions**: Often used for visualization purposes. Data is reduced to a 2D plane, which can lead to a potential loss of intricate data structures. This might result in some clusters merging or splitting.
+    /// 
+    /// - **Higher Dimensions (4, 5, ...)**: Increasing dimensions allows UMAP to preserve more of the local and global data structure. This can lead to a clearer separation of clusters in the higher-dimensional space. However, clustering algorithms might behave differently in higher dimensions due to the "curse of dimensionality". In higher dimensions, the distance between data points tends to become more uniform, making it harder to define dense regions.
+    /// 
+    /// The relationship between MaxRelatedRecollectionClusterMemories and NumberOfDimensions has shown to produce consistent clustering patterns. By multiplying MaxRelatedRecollectionClusterMemories by NumberOfDimensions, data is allowed to expand in the reduced space, potentially capturing more nuances. However, the exact behavior will depend on the inherent structure of your data and the interplay between UMAP and HDBSCAN. 
+    /// 
+    /// While maintaining this relationship can lead to consistent clustering, the exact number of clusters and their structure might vary based on the data and specific parameter values.
+    /// 
+    /// It's encouraged to experiment with different values and analyze the empirical results to get a clearer understanding of the effects.
+    /// </remarks>
+    public int NumberOfDimensions { get; set; } = 3;
+
+    /// <summary>
     /// The maximum size of a cluster during recollection and consolidation. 
     /// </summary> 
-    public int MaxRelatedRecollectionClusterMemories { get; set; } = 8;
+    public int MaxRelatedRecollectionClusterMemories { get; set; } = 16;
 
     /// <summary>
     /// The max number of memories included in reaction formation.
@@ -331,14 +349,12 @@ public abstract partial class Exocortex<T>
                 recollectionMemoriesWithWeights.Add(related);
         }
 
-        var numberOfDimensions = 3;
-
         // Apply limits and sorting
-        // Grab a broad set of memories to reduce and cluster back into numberOfDimensions via Umap / Hdbscan
+        // Grab a broad set of memories to reduce and cluster back into NumberOfDimensions via Umap / Hdbscan
         var recollectionMemories = recollectionMemoriesWithWeights
                 .Select(x => (Memory: x.Item1, Score: x.Item2))
                 .OrderByDescending(x => x.Score)
-                .Take(MaxRelatedRecollectionClusterMemories * numberOfDimensions)
+                .Take(MaxRelatedRecollectionClusterMemories * NumberOfDimensions)
                 .Select(x => x.Memory)
                 .OrderBy(x => x.CreationTimestamp)
                 .Distinct();
@@ -351,7 +367,7 @@ public abstract partial class Exocortex<T>
             // UMAP Reduction
             // TODO: UMAP and clustering should be based on the combined memory curve, not just relevancy.
             // This is a limitation of the Umap library being used.
-            var umap = new Umap((x, y) => ComputeCosineSimilarity(x, y), dimensions: numberOfDimensions, numberOfNeighbors: 1);
+            var umap = new Umap((x, y) => ComputeCosineSimilarity(x, y), dimensions: NumberOfDimensions, numberOfNeighbors: 1);
             var numberOfEpochs = umap.InitializeFit(embeddings);
             for (var i = 0; i < numberOfEpochs; i++)
                 umap.Step();
@@ -367,7 +383,7 @@ public abstract partial class Exocortex<T>
             {
                 DataSet = recollectionMemoriesWithReducedDimensions, // double[][] for normal matrix or Dictionary<int, int>[] for sparse matrix
                 MinPoints = 1,
-                MinClusterSize = MaxRelatedRecollectionClusterMemories / numberOfDimensions,
+                MinClusterSize = MaxRelatedRecollectionClusterMemories / NumberOfDimensions,
                 CacheDistance = false, // using caching for distance throws unexpectedly
                 MaxDegreeOfParallelism = 0, // to indicate all threads, you can specify 0.
                 DistanceFunction = new CortexMemoryDistanceSpace<T>()
