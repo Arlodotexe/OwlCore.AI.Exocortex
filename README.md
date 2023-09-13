@@ -1,7 +1,8 @@
 # OwlCore.AI.Exocortex [![Version](https://img.shields.io/nuget/v/OwlCore.AI.Exocortex.svg)](https://www.nuget.org/packages/OwlCore.AI.Exocortex)
-The creation of an Exocortex is part of a larger exploration into the "Symbiosis of Artificial and Human Intelligence"[^3].
 
 Inspired by the paper "Generative Agents: Interactive Simulacra of Human Behavior"[^1]
+
+The creation of an Exocortex is part of a larger exploration into the "Symbiosis of Artificial and Human Intelligence"[^3].
 
 > **Important**  
 > The code is being iterated on faster than the README, and it may be out of date as a result.
