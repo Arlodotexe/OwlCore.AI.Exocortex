@@ -112,12 +112,9 @@ In the Exocortex, memories are not just stored as individual units but are group
 
 A significant challenge in AI memory models is avoiding confabulation – where the system creates false memories by merging different memories together. The Exocortex's clustering mechanism addresses this by ensuring that:
 
-- Each cluster is distinct and separate, ensuring that while memories within a cluster are similar to each other, clusters themselves are diverse.
-- The summaries, while reflecting the collective context of the cluster, remain rooted in the original prompt, avoiding the creation of entirely new or false narratives.
-- Since recollections are also treated as short-term memories, the Exocortex constantly "reads between the lines" by considering the context in which memories were recalled in the past, further preventing confabulation.
-
-By grouping memories and constantly updating its understanding based on new recollections, the Exocortex achieves a delicate balance between memory recall and consolidation, ensuring accuracy and relevancy in memory retrieval.
-
+- Memory clusters are similar to the prompt but different from each other.
+- The clustered summaries reflect that, all rooted in the same idea augmented with a slightly different context.
+- Since recollections are also treated as short-term memories, when re-inserted into short-term context, LLMs have been observed to "reads between the lines" across these similar clusters of memories, further preventing confabulation, especially effectively when summaries highlight the time and date events in the recollection happen.
 
 ### Detailed Clustering Process
 
