@@ -29,7 +29,7 @@ var finalWeight = ((relevance * nostalgiaWeight) + recency) * typeWeight;
 
 The nostalgiaWeight is an inverse of the recency score, acting as a counterbalance. This change ensures that while recent memories are naturally prioritized, older but relevant memories aren't overshadowed. By taking a weight sum instead, a low recency score won't bring down a high relevancy score.
 
-Further, it was noted that if you observe these curves at the ages of early adolescence (10-14) to young adult (16-20), the intersection point of the recency and nostalgia weight (where the nostalgia weight first kicks in) will slowly move into the short-term memory, slowing as it approaches the age of ~25-30. This gives it a small boost to relevant memories that are about to fade rapidly, and may contribute to an overall heightened performance in larger contexts.
+Further, it was noted that if you observe these curves at the ages of early adolescence (10-14) to young adult (16-20), the intersection point of the recency and nostalgia weight (where the nostalgia weight first kicks in) will slowly move into the short-term memory, slowing as it approaches the age of ~25-30. This gives it a small boost to relevant memories that are about to fade rapidly, and may contribute to an overall heightened performance whith larger short-term memory.
 
 See [these plots](./5days%20to%2030years). This requires further research, but has the potential to increase overall performance and negate the ill effects of the short-term memory getting very large in higher ages. Ideally, we want this effect to happen sooner than it would in a real human, though it's unclear if this is mathematically feasibile in the current system.
 
