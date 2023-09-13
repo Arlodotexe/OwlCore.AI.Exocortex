@@ -309,8 +309,8 @@ public abstract partial class Exocortex<T>
         var relatedMemories = new HashSet<CortexMemory<T>>();
 
         // Gather memories
-        // Clusters are formed from all long-term memories using similiarity to short-term memories.
-        foreach (var memory in ShortTermMemories)
+        // Clusters are formed from all long-term memories using similarity to short-term memories.
+        foreach (var memory in ShortTermMemories.OrderByDescending(x => x.CreationTimestamp).Take(MaxRelatedRecollectionClusterMemories))
         {
             var relatedToShortTermMemory = LongTermMemories
                 .Select(x => (Memory: x, Score: ComputeMemoryWeight(memory, x.EmbeddingVector)))
@@ -396,21 +396,22 @@ public abstract partial class Exocortex<T>
         // Create final reaction to the new memory, but with recent internal reflections.
         // Recency weights ensure recent recollections are prioritized over old ones.
         // Relevance weights ensure we can filter through large volumes of incoming information, as well as clusters with no useful information.
-        IEnumerable<CortexMemory<T>> reactionMemories = new HashSet<CortexMemory<T>>();
+        IEnumerable<CortexMemory<T>> reactionMemories = new HashSet<CortexMemory<T>>(ShortTermMemories.OrderByDescending(x => x.CreationTimestamp).Take(MaxRelatedReactionMemories));
 
         // Gather memories
         // Clusters are formed from all long-term memories using similiarity to short-term memories.
         // TODO:        
         // Recency isn't overtaking relevance at the very start of the memory stream, and we need more context than just what's related to the newest core memory.
         // This is the same trick we used when gathering memories for clustering, in order to bypass the limitation in the Umap library that only allows us to cluster based on relevance.
+        // The way limits are set up will ensure that we always have MaxRelatedReactionMemories grabbed from short-term, and we always end up with MaxRelatedReactionMemories
+        // but some replaced with memories that are related other short-term memories, those which bear a higher weighted sum (recency, relevance, nostalgia, etc).
         foreach (var memory in ShortTermMemories)
         {
-            var relatedToShortTermMemory = ShortTermMemories
+            var relatedToShortTermMemory = Memories
                 .Select(x => (Memory: x, Score: ComputeMemoryWeight(memory, x.EmbeddingVector)))
                 .OrderByDescending(x => x.Score)
                 .Take(MaxRelatedReactionMemories)
-                .Select(x => x.Memory)
-                .OrderBy(x => x.CreationTimestamp);
+                .Select(x => x.Memory);
 
             foreach (var related in relatedToShortTermMemory)
                 ((HashSet<CortexMemory<T>>)reactionMemories).Add(related);
@@ -418,6 +419,7 @@ public abstract partial class Exocortex<T>
 
         // Apply limits and sorting to memories in hashmap
         reactionMemories = reactionMemories
+                .OrderByDescending(x => x.CreationTimestamp)
                 .Take(MaxRelatedReactionMemories)
                 .OrderBy(x => x.CreationTimestamp);
 
