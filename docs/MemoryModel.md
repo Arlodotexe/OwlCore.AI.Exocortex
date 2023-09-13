@@ -2,7 +2,7 @@
 
 The Exocortex's memory model prioritizes both the recency and relevance of memories, seeking to emulate the human brain's intricate balance between recalling recent experiences and older but more relevant memories.
 
-## Memory Weighting Mechanism
+## Memory Weighting
 
 The curves for short-term and long-term memories are exponential and logarithmic respectively, normalizing and adapting to both the oldest long-term memory and the short-term memory duration specified by the user.
 
