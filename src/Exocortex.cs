@@ -331,11 +331,14 @@ public abstract partial class Exocortex<T>
                 recollectionMemoriesWithWeights.Add(related);
         }
 
+        var numberOfDimensions = 3;
+
         // Apply limits and sorting
+        // Grab a broad set of memories to reduce and cluster back into numberOfDimensions via Umap / Hdbscan
         var recollectionMemories = recollectionMemoriesWithWeights
                 .Select(x => (Memory: x.Item1, Score: x.Item2))
                 .OrderByDescending(x => x.Score)
-                .Take(MaxRelatedRecollectionClusterMemories)
+                .Take(MaxRelatedRecollectionClusterMemories * numberOfDimensions)
                 .Select(x => x.Memory)
                 .OrderBy(x => x.CreationTimestamp)
                 .Distinct();
@@ -348,7 +351,7 @@ public abstract partial class Exocortex<T>
             // UMAP Reduction
             // TODO: UMAP and clustering should be based on the combined memory curve, not just relevancy.
             // This is a limitation of the Umap library being used.
-            var umap = new Umap((x, y) => ComputeCosineSimilarity(x, y), dimensions: 3, numberOfNeighbors: 1);
+            var umap = new Umap((x, y) => ComputeCosineSimilarity(x, y), dimensions: numberOfDimensions, numberOfNeighbors: 1);
             var numberOfEpochs = umap.InitializeFit(embeddings);
             for (var i = 0; i < numberOfEpochs; i++)
                 umap.Step();
@@ -364,7 +367,7 @@ public abstract partial class Exocortex<T>
             {
                 DataSet = recollectionMemoriesWithReducedDimensions, // double[][] for normal matrix or Dictionary<int, int>[] for sparse matrix
                 MinPoints = 1,
-                MinClusterSize = 5,
+                MinClusterSize = MaxRelatedRecollectionClusterMemories / numberOfDimensions,
                 CacheDistance = false, // using caching for distance throws unexpectedly
                 MaxDegreeOfParallelism = 0, // to indicate all threads, you can specify 0.
                 DistanceFunction = new CortexMemoryDistanceSpace<T>()
