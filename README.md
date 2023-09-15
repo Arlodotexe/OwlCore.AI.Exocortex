@@ -18,7 +18,7 @@ The Exocortex operates on a "rolling context" mechanism, ensuring that the most 
 **Privacy**: Users can swap the AI model and can create specialized exocortices for different domains.
 
 ### Memory Architecture
-This architecture is inspired by "Generative Agents: Interactive Simulacra of Human Behavior", with modifications to better cater to the nuances of human memory. 
+This architecture was originally inspired by "Generative Agents: Interactive Simulacra of Human Behavior", with some significant modifications that cater to the nuances of human memory. 
 
 For more details, see [docs/MemoryModel.md](https://github.com/Arlodotexe/OwlCore.AI.Exocortex/blob/main/docs/MemoryModel.md).
 
