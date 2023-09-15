@@ -321,13 +321,8 @@ public abstract partial class Exocortex<T>
         // ---------------
         // Recollection memory
         // ---------------
-        // Remember the act of recalling these memories, and roll reflections from one recollection to the next.
-        // Roughly emulates the act of remembering and reflecting on thoughts before responding.
-        // Context is rolled from the original memory, through a timeline of the most relevant and recent memories, and out into a "final thought".
-
         // Gather memories
-        // Clusters are formed from all long-term memories using similarity to short-term memories.
-        // Start with short-term memories
+        // Starting with the most recent short-term memories (including the new prompt), each short-term memory pulls in the most recent and relevant memories to it from the long-term.   
         var recollectionMemoriesWithWeights = new List<(CortexMemory<T>, double)>(ShortTermMemories.Select(x => (Memory: x, Score: ComputeMemoryWeight(newMemory, x.EmbeddingVector))));
 
         // TODO:
@@ -432,7 +427,11 @@ public abstract partial class Exocortex<T>
         // Create final reaction to the new memory, but with recent internal reflections.
         // Recency weights ensure recent recollections are prioritized over old ones.
         // Relevance weights ensure we can filter through large volumes of incoming information, as well as clusters with no useful information.
-        IEnumerable<CortexMemory<T>> reactionMemories = new HashSet<CortexMemory<T>>(ShortTermMemories.OrderByDescending(x => x.CreationTimestamp).Take(MaxRelatedReactionMemories));
+        
+        // Do not begin iteration with memories already added, or it may struggle to recall memories older than the ones provided.
+        // By iterating ShortTermMemories but comparing to all memories, it effectively replaces new memories with an older when the computed memory weight (recency, relevancy, nostalgia, etc) is higher than the original.
+        // For the final reaction, we take `MaxRelatedReactionMemories` of the most recent memories, and starting with memories means they could be included regardless of their weights, if they're newer than the found memories.
+        IEnumerable<CortexMemory<T>> reactionMemories = new HashSet<CortexMemory<T>>();
 
         // Gather memories
         // Clusters are formed from all long-term memories using similarity to short-term memories.
@@ -444,7 +443,7 @@ public abstract partial class Exocortex<T>
         foreach (var memory in ShortTermMemories)
         {
             var relatedToShortTermMemory = Memories
-                .Select(x => (Memory: x, Score: ComputeMemoryWeight(memory, x.EmbeddingVector)))
+                .Select(x => (Memory: x, Score: ComputeMemoryWeight(x, memory.EmbeddingVector)))
                 .OrderByDescending(x => x.Score)
                 .Take(MaxRelatedReactionMemories)
                 .Select(x => x.Memory);
