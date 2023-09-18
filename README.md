@@ -37,7 +37,7 @@ For more details, see [docs/MemoryModel.md](https://github.com/Arlodotexe/OwlCor
 - **Recollections as Short-term Memories**: By recalling a cluster of memories, the system also remembers the act of recalling within the context of the short-term memories. Recollections in the Exocortex are used for transferring memories from long-term into short-term and for building compact, dense, broad context long-term memories that are highly suitable for recollection.
   
 - **Summarizing the Context**: Recollections are used to summarize memories that are relevant to the short-term memories with respect to a new input, storing that as a new recollection memory. These are more likely to be retrieved from long-term memory, provided as past context for a future conversation.
-  - The summarization mechanism has since been briefly explored and confirmed in an academic setting. See "Recursively Summarizing Enables Long-Term Dialogue Memory in Large Language Models."[^4]. This does not touch on optimal clustering, memory curves or other areas that still need formal research.
+  - The summarization mechanism has since been briefly explored and confirmed in an academic setting. See "Recursively Summarizing Enables Long-Term Dialogue Memory in Large Language Models."[^4]. This does not touch on clustering, memory curves or other areas that still need formal research.
 
 For more details, see [docs/MemoryModel.md](https://github.com/Arlodotexe/OwlCore.AI.Exocortex/blob/main/docs/MemoryModel.md).
 
