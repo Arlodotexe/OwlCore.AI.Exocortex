@@ -41,7 +41,7 @@ In the Exocortex, memories are not just stored as individual units but are group
 
 1. **Gathering Long-term Memories**: Starting with the most recent short-term memories (including the new prompt), each short-term memory pulls in the most recent and relevant memories to it from the long-term.
 1. **Formation of Clusters**: Given the found relevant long-term memories and scores, we expand the number of memories clustered to `MaxRelatedRecollectionClusterMemories * NumberOfDimensions`, reduce it to `NumberOfDimensions` with Umap, then cluster it. Each cluster is sorted by the computed memory weight in relation to the new memory, and only `MaxRelatedRecollectionClusterMemories` are taken in each cluster. 
-2. **Memory Cluster Summaries**: Now that we have our clusters, we can summarize each one using the abstract `SummarizeMemoryInNewContext` method (implemented by the LLM or another system) and create a recollection memory. These summaries are reflections of the memories within the cluster, rooted in the same context of the prompt but augmented with slight variations based on the memories within the cluster.
+2. **Memory Cluster Summaries**: Now that we have our clusters, we can summarize each one using the abstract `SummarizeMemoryInNewContext` method (implemented by the LLM or another system) and create a recollection memory. These summaries are reflections of the memories within the cluster, rooted in the same context of the prompt but augmented with slight variations based on the memories within the cluster. The summarization mechanism has since been briefly explored and confirmed in an academic setting. See "Recursively Summarizing Enables Long-Term Dialogue Memory in Large Language Models."[^4].
 3. **Use the new recollection memories**: The act of recalling and summarizing memories is itself stored as a new memory in the Exocortex. Being a recent memory, it is highly likely to retrieved for the final reaction memory, unless another memory with a higher weight is found to replace it.
 
 ### Overcoming Confabulation
@@ -74,7 +74,7 @@ A significant challenge in AI memory models is avoiding confabulation – where 
 
 5. **Cluster Summarization**:
    - For each cluster identified, a representative summary is generated. This summary encapsulates the common themes or content of all memories within the cluster.
-   - The summary is rooted in the context of the original prompt but contains nuances from all memories in the cluster.
+   - The summary is rooted in the context of the original prompt but contains nuances from all memories in the cluster. 
 
 6. **Storing Recollections**:
    - The act of recalling and summarizing memories is itself stored as a new memory in the Exocortex.
@@ -151,3 +151,4 @@ Plotted with a long-term decay threshold of 0.1 and a short-term duration of 25 
 
 
 [^1]: Joon Sung Park and Joseph C. O'Brien and Carrie J. Cai and Meredith Ringel Morris and Percy Liang and Michael S. Bernstein (2023). Generative Agents: Interactive Simulacra of Human Behavior. arXiv preprint [arXiv:2304.03442](https://arxiv.org/abs/2304.03442).
+[^4]: Qingyue Wang, Liang Ding, Yanan Cao, Zhiliang Tian, Shi Wang, Dacheng Tao, Li Guo (2023). "Recursively Summarizing Enables Long-Term Dialogue Memory in Large Language Models." arXiv preprint [arXiv:2308.15022](https://arxiv.org/abs/2308.15022).
