@@ -37,6 +37,7 @@ For more details, see [docs/MemoryModel.md](https://github.com/Arlodotexe/OwlCor
 - **Recollections as Short-term Memories**: By recalling a cluster of memories, the system also remembers the act of recalling within the context of the short-term memories. Recollections in the Exocortex are used for transferring memories from long-term into short-term and for building compact, dense, broad context long-term memories that are highly suitable for recollection.
   
 - **Summarizing the Context**: Recollections are used to summarize memories that are relevant to the short-term memories with respect to a new input, storing that as a new recollection memory. These are more likely to be retrieved from long-term memory, provided as past context for a future conversation.
+  - This mechanism has now been independently explored and confirmed in an academic setting ("Recursively Summarizing Enables Long-Term Dialogue Memory in Large Language Models."[^4]).
 
 For more details, see [docs/MemoryModel.md](https://github.com/Arlodotexe/OwlCore.AI.Exocortex/blob/main/docs/MemoryModel.md).
 
@@ -81,4 +82,6 @@ All OwlCore code is licensed under the MIT License. OwlCore is licensed under th
 [^2]: Vaishnavi Himakunthala and Andy Ouyang and Daniel Rose and Ryan He and Alex Mei and Yujie Lu and Chinmay Sonar and Michael Saxon and William Yang Wang (2023). Let’s Think Frame by Frame: Evaluating Video Chain of Thought with
 Video Infilling and Prediction. arXiv preprint [arXiv:2305.13903](https://arxiv.org/abs/2305.13903).
 [^3]: Arlo Godfrey: Exploring Symbiosis of Artificial and Human Intelligence. [brain-dump/6](https://github.com/Arlodotexe/brain-dump/issues/6)
+[^4]: Qingyue Wang, Liang Ding, Yanan Cao, Zhiliang Tian, Shi Wang, Dacheng Tao, Li Guo (2023). "Recursively Summarizing Enables Long-Term Dialogue Memory in Large Language Models." arXiv preprint [arXiv:2308.15022](https://arxiv.org/abs/2308.15022).
+
 
