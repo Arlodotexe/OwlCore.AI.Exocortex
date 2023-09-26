@@ -37,7 +37,7 @@ public record CortexMemory<T> : IComparable<CortexMemory<T>>
     /// <summary>
     /// Gets the embedding vector representing the content of this memory.
     /// </summary>
-    public double[] EmbeddingVector { get; init; }
+    public double[] EmbeddingVector { get; set; }
 
     /// <inheritdoc/>
     public int CompareTo(CortexMemory<T>? other)
