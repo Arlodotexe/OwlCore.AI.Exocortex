@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OwlCore.AI.Exocortex", "src
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OwlCore.AI.Exocortex.Tests", "tests\OwlCore.AI.Exocortex.Tests.csproj", "{47D65BC3-7E88-49A3-8A8A-773410E39F74}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UMAP", "..\..\LlmPlayground\OwlCore.AI.Exocortex\src\OwlCore.AI.Exocortex\UMAP\UMAP.csproj", "{5CEF3764-2977-46C1-B4A1-5A050852E940}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{47D65BC3-7E88-49A3-8A8A-773410E39F74}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{47D65BC3-7E88-49A3-8A8A-773410E39F74}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{47D65BC3-7E88-49A3-8A8A-773410E39F74}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5CEF3764-2977-46C1-B4A1-5A050852E940}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5CEF3764-2977-46C1-B4A1-5A050852E940}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5CEF3764-2977-46C1-B4A1-5A050852E940}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5CEF3764-2977-46C1-B4A1-5A050852E940}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

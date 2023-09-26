@@ -1,0 +1,3 @@
+[submodule "src/OwlCore.AI.Exocortex"]
+	path = src/OwlCore.AI.Exocortex
+	url = https://github.com/amaid/umap-sharp.git
