@@ -323,7 +323,7 @@ public abstract partial class Exocortex<T>
         // ---------------
         // Gather memories
         // Starting with the most recent short-term memories (including the new prompt), each short-term memory pulls in the most recent and relevant memories to it from the long-term.   
-        var recollectionMemoriesWithWeights = new List<(CortexMemory<T>, double)>(ShortTermMemories.Select(x => (Memory: x, Score: ComputeMemoryWeight(newMemory, x.EmbeddingVector))));
+        var recollectionMemoriesWithWeights = new HashSet<(CortexMemory<T>, double)>(ShortTermMemories.Select(x => (Memory: x, Score: ShortTermDecayThreshold)));
 
         // TODO:
         // Recency isn't overtaking relevance at the very start of the memory stream, and we need more context than just what's related to the newest core memory.
@@ -386,7 +386,7 @@ public abstract partial class Exocortex<T>
 
             var clusteredMemories = recollectionMemoriesWithReducedDimensions.Zip(clusterResult.Labels, (memory, label) => (Memory: memory, Label: label)).ToList();
 
-            foreach (var batchOfClusters in clusterResult.Labels.Distinct().Batch(3))
+            foreach (var batchOfClusters in clusterResult.Labels.Distinct().Batch(1))
             {
                 var results = await batchOfClusters.InParallel(async cluster =>
                 {
