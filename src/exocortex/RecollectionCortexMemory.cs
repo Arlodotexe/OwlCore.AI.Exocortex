@@ -15,7 +15,7 @@ public record RecollectionCortexMemory<T> : CortexMemory<T>
     /// <param name="content">The raw content of the memory.</param>
     /// <param name="embeddingVector">The vectorized embeddings that represent this memory.</param>
     /// <param name="recalledMemories">The memories that were recalled to create this.</param>
-    public RecollectionCortexMemory(T content, double[] embeddingVector, IEnumerable<CortexMemory<T>> recalledMemories)
+    public RecollectionCortexMemory(T content, float[] embeddingVector, IEnumerable<CortexMemory<T>> recalledMemories)
         : base(content, embeddingVector)
     {
         Type = CortexMemoryType.Recollection;

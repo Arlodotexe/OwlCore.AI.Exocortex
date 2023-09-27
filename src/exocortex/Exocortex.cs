@@ -178,7 +178,7 @@ public abstract partial class Exocortex<T>
     /// <param name="memoryContent">The content to generate an embedding for.</param>
     /// <param name="cancellationToken">A token that can be used to cancel the ongoing operation.</param>
     /// <returns>A vector representing the content.</returns>
-    public abstract Task<double[]> GenerateEmbeddingAsync(T memoryContent, CancellationToken cancellationToken = default);
+    public abstract Task<float[]> GenerateEmbeddingAsync(T memoryContent, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Computes the cosine similarity between two vectors. Normalized to [0, 1].
@@ -197,25 +197,6 @@ public abstract partial class Exocortex<T>
             throw new ArgumentOutOfRangeException(nameof(finalWeight), "Memory weight out of range.");
 
         return (float)finalWeight;
-    }
-
-    /// <summary>
-    /// Computes the cosine similarity between two vectors. Normalized to [0, 1].
-    /// This can be used to determine how similar two memories are.
-    /// </summary>
-    public static double ComputeCosineSimilarity(double[] vector1, double[] vector2)
-    {
-        double dotProduct = vector1.Zip(vector2, (a, b) => a * b).Sum();
-        double magnitude1 = Math.Sqrt(vector1.Sum(a => a * a));
-        double magnitude2 = Math.Sqrt(vector2.Sum(b => b * b));
-        double cosineSimilarity = dotProduct / (magnitude1 * magnitude2);
-
-        // Normalize to [0, 1]
-        var finalWeight = (1 + cosineSimilarity) / 2;
-        if (finalWeight > 1 || finalWeight < 0)
-            throw new ArgumentOutOfRangeException(nameof(finalWeight), "Memory weight out of range.");
-
-        return finalWeight;
     }
 
     /// <summary>
@@ -254,7 +235,7 @@ public abstract partial class Exocortex<T>
     }
 
     /// <summary>
-    /// Computes the weighted score of a given memory based on its relevance to a query, its recency, and its type.
+    /// Computes the weighted score (between 0 and 1) of a given memory based on its relevance to a query, its recency, and its type.
     /// </summary>
     /// <param name="memory">The memory whose weight is to be computed.</param>
     /// <param name="queryEmbedding">The embedding vector of the query/content being compared against the memory.</param>
@@ -266,13 +247,13 @@ public abstract partial class Exocortex<T>
     /// 3. Type: Different types of memories (e.g., core, recalled with context, reaction) might have different inherent weights.
     /// This method combines these factors to produce a composite weight for the memory.
     /// </remarks>
-    public double ComputeMemoryWeight(CortexMemory<T> memory, double[] queryEmbedding)
+    public double ComputeMemoryWeight(CortexMemory<T> memory, float[] queryEmbedding)
     {
-        var relevance = ComputeCosineSimilarity(memory.EmbeddingVector, queryEmbedding);
+        var relevance = ComputeCosineSimilarity(memory.EmbeddingVectors, queryEmbedding);
         var recency = ComputeRecencyScore(memory.CreationTimestamp);
 
         // Inverse of recency.
-        // A slight boost to the end of short-term memory will develop after a few years. Feature or bug? Adds attention to the end of the rolling context, may be good to keep.
+        // A slight boost to the end of short-term memory will develop after about a decade. Feature or bug? Adds attention to the end of the rolling context, may be good to keep.
         var nostalgia = 1 - recency;
 
         var typeWeight = memory.Type switch
@@ -284,7 +265,6 @@ public abstract partial class Exocortex<T>
         };
 
         var finalWeight = ((nostalgia * relevance) + recency) * typeWeight;
-
         if (finalWeight > 2 || finalWeight < 0)
             throw new ArgumentOutOfRangeException(nameof(finalWeight), "Memory weight out of range.");
 
@@ -335,9 +315,9 @@ public abstract partial class Exocortex<T>
         {
             // Find long-term memories that are weighted higher.
             var relatedToShortTermMemory = LongTermMemories
-                .Select(x => (Memory: x, Score: ComputeMemoryWeight(item.Item1, x.EmbeddingVector)))
+                .Select(x => (Memory: x, Score: ComputeMemoryWeight(item.Item1, x.EmbeddingVectors)))
                 .OrderByDescending(x => x.Score)
-                .Take(MaxRelatedRecollectionClusterMemories)
+                .Take(MaxRelatedRecollectionClusterMemories * NumberOfDimensions)
                 .OrderBy(x => x.Memory.CreationTimestamp);
 
             foreach (var related in relatedToShortTermMemory)
@@ -357,18 +337,18 @@ public abstract partial class Exocortex<T>
         if (recollectionMemories.Any())
         {
             // Generate embeddings for all related memories
-            float[][] embeddings = recollectionMemories.Select(x => x.EmbeddingVector.Select(v => (float)v).ToArray()).ToArray();
+            var dataPoints = recollectionMemories.Select(x => new CortexMemoryUmapDataPoint<T>(x)).ToArray();
 
             // UMAP Reduction
             // TODO: UMAP and clustering should be based on the combined memory curve, not just relevancy.
             // This is a limitation of the Umap library being used.
-            var umap = new Umap((x, y) => ComputeCosineSimilarity(x, y), dimensions: NumberOfDimensions, numberOfNeighbors: 1);
-            var numberOfEpochs = umap.InitializeFit(embeddings);
+            var umap = new Umap<CortexMemoryUmapDataPoint<T>>((x, y) => (float)ComputeMemoryWeight(x, y.Memory.EmbeddingVectors), dimensions: NumberOfDimensions, numberOfNeighbors: 1);
+            var numberOfEpochs = umap.InitializeFit(dataPoints);
             for (var i = 0; i < numberOfEpochs; i++)
                 umap.Step();
 
             // Create reduced memories we can cluster.
-            var recollectionMemoriesWithReducedDimensions = umap.GetEmbedding().Select((x, i) => new ReducedCortexMemory<T>(x.Select(x => (double)x).ToArray(), recollectionMemories.ElementAt(i))).ToArray();
+            var recollectionMemoriesWithReducedDimensions = umap.GetEmbedding().Select((x, i) => new ReducedCortexMemory<T>(x, recollectionMemories.ElementAt(i))).ToArray();
 
             // Cluster memories
             // Memory clusters are similar to the prompt but different from each other.
@@ -381,7 +361,7 @@ public abstract partial class Exocortex<T>
                 MinClusterSize = MaxRelatedRecollectionClusterMemories / NumberOfDimensions,
                 CacheDistance = false, // using caching for distance throws unexpectedly
                 MaxDegreeOfParallelism = 0, // to indicate all threads, you can specify 0.
-                DistanceFunction = new CortexMemoryDistanceSpace<T>()
+                DistanceFunction = new CortexMemoryDistanceSpace<T>(this)
             });
 
             var clusteredMemories = recollectionMemoriesWithReducedDimensions.Zip(clusterResult.Labels, (memory, label) => (Memory: memory, Label: label)).ToList();
@@ -427,7 +407,7 @@ public abstract partial class Exocortex<T>
         // Create final reaction to the new memory, but with recent internal reflections.
         // Recency weights ensure recent recollections are prioritized over old ones.
         // Relevance weights ensure we can filter through large volumes of incoming information, as well as clusters with no useful information.
-        
+
         // Do not begin iteration with memories already added, or it may struggle to recall memories older than the ones provided.
         // By iterating ShortTermMemories but comparing to all memories, it effectively replaces new memories with an older when the computed memory weight (recency, relevancy, nostalgia, etc) is higher than the original.
         // For the final reaction, we take `MaxRelatedReactionMemories` of the most recent memories, and starting with memories means they could be included regardless of their weights, if they're newer than the found memories.
@@ -443,7 +423,7 @@ public abstract partial class Exocortex<T>
         foreach (var memory in ShortTermMemories)
         {
             var relatedToShortTermMemory = Memories
-                .Select(x => (Memory: x, Score: ComputeMemoryWeight(x, memory.EmbeddingVector)))
+                .Select(x => (Memory: x, Score: ComputeMemoryWeight(x, memory.EmbeddingVectors)))
                 .OrderByDescending(x => x.Score)
                 .Take(MaxRelatedReactionMemories)
                 .Select(x => x.Memory);
@@ -454,8 +434,10 @@ public abstract partial class Exocortex<T>
 
         // Apply limits and sorting to memories in hashmap
         reactionMemories = reactionMemories
-                .OrderByDescending(x => x.CreationTimestamp)
+                .Select(x => (Memory: x, Score: ComputeMemoryWeight(x, newMemory.EmbeddingVectors)))
+                .OrderByDescending(x => x.Score)
                 .Take(MaxRelatedReactionMemories)
+                .Select(x => x.Memory)
                 .OrderBy(x => x.CreationTimestamp);
 
         var reaction = await ReactToMemoryAsync(newMemory, reactionMemories);

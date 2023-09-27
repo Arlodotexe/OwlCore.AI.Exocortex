@@ -11,7 +11,7 @@ public record ReducedCortexMemory<T> : CortexMemory<T>
     /// </summary>
     /// <param name="reducedEmbeddingVectors">The vectorized embeddings that represent this memory.</param>
     /// <param name="originalMemory">The original memory was reduced to create this.</param>
-    public ReducedCortexMemory(double[] reducedEmbeddingVectors, CortexMemory<T> originalMemory)
+    public ReducedCortexMemory(float[] reducedEmbeddingVectors, CortexMemory<T> originalMemory)
         : base(originalMemory.Content, reducedEmbeddingVectors)
     {
         Type = CortexMemoryType.Recollection;

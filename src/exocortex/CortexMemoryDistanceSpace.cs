@@ -1,4 +1,5 @@
-﻿using HdbscanSharp.Distance;
+﻿using CommunityToolkit.Diagnostics;
+using HdbscanSharp.Distance;
 
 namespace OwlCore.AI.Exocortex;
 
@@ -8,5 +9,18 @@ namespace OwlCore.AI.Exocortex;
 /// <typeparam name="T">The raw memory type.</typeparam>
 public struct CortexMemoryDistanceSpace<T> : IDistanceCalculator<CortexMemory<T>>
 {
-    public double ComputeDistance(int indexOne, int indexTwo, CortexMemory<T> attributesOne, CortexMemory<T> attributesTwo) => Exocortex<T>.ComputeCosineSimilarity(attributesOne.EmbeddingVector, attributesTwo.EmbeddingVector);
+    private readonly Exocortex<T> _exocortex;
+
+    /// <summary>
+    /// Creates a new instance of <see cref="CortexMemoryDistanceSpace{T}"/>.
+    /// </summary>
+    /// <param name="exocortex"></param>
+    public CortexMemoryDistanceSpace(Exocortex<T> exocortex)
+    {
+        Guard.IsNotNull(exocortex);
+        _exocortex = exocortex;
+    }
+
+    /// <inheritdoc/>
+    public double ComputeDistance(int indexOne, int indexTwo, CortexMemory<T> attributesOne, CortexMemory<T> attributesTwo) => _exocortex.ComputeMemoryWeight(attributesOne, attributesTwo.EmbeddingVectors);
 }

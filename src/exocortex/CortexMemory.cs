@@ -12,11 +12,11 @@ public record CortexMemory<T> : IComparable<CortexMemory<T>>
     /// Creates a new instance of <see cref="CortexMemory{T}"/>.
     /// </summary>
     /// <param name="content">The raw content of the memory.</param>
-    /// <param name="embeddingVector">The vectorized embeddings that represent this memory.</param>
-    public CortexMemory(T content, double[] embeddingVector)
+    /// <param name="embeddingVectors">The vectorized embeddings that represent this memory.</param>
+    public CortexMemory(T content, float[] embeddingVectors)
     {
         Content = content;
-        EmbeddingVector = embeddingVector;
+        EmbeddingVectors = embeddingVectors;
     }
 
     /// <summary>
@@ -37,7 +37,7 @@ public record CortexMemory<T> : IComparable<CortexMemory<T>>
     /// <summary>
     /// Gets the embedding vector representing the content of this memory.
     /// </summary>
-    public double[] EmbeddingVector { get; set; }
+    public float[] EmbeddingVectors { get; set; }
 
     /// <inheritdoc/>
     public int CompareTo(CortexMemory<T>? other)

@@ -74,10 +74,9 @@ Initial release of OwlCore.AI.Exocortex.
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
 		<PackageReference Include="System.Linq.Async" Version="6.0.1" />
-		<PackageReference Include="UMAP" Version="1.0.34015" />
 	</ItemGroup>
 
 	<ItemGroup>
-	  <ProjectReference Include="..\..\..\LlmPlayground\OwlCore.AI.Exocortex\src\OwlCore.AI.Exocortex\UMAP\UMAP.csproj" />
+	  <ProjectReference Include="..\umap\UMAP\UMAP.csproj" />
 	</ItemGroup>
 </Project>
