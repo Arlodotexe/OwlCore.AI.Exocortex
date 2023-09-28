@@ -98,22 +98,17 @@ public abstract partial class Exocortex<T>
     }
 
     /// <summary>
-    /// The weight used for the raw memory content provided to <see cref="AddMemoryAsync(T)"/>.
+    /// A weight between 0 and 1 used for the raw memory content provided to <see cref="AddMemoryAsync(T)"/>.
     /// </summary>
     public double CoreMemoryWeight { get; set; } = 1;
 
     /// <summary>
-    /// The weight used for summary memories of the conversation where old and new context are combined.
+    /// A weight between 0 and 1 used for summary memories of the conversation where old and new context are combined.
     /// </summary>
-    /// <remarks>
-    /// The system should emphasize memory summaries (recollections) over core memories to provide a more concise and streamlined context.
-    /// While core memories contain dense information, the recollections offer a summarized view, making them more suitable for quick 
-    /// recall and relevance in ongoing conversations.
-    /// </remarks>
     public double RecalledWithContextMemoryWeight { get; set; } = 0.33;
 
     /// <summary>
-    /// The weight used for reaction memories to a new core memory, with the recollections memories as added context.
+    /// A weight between 0 and 1 used for reaction memories to a new core memory, with the recollections memories as added context.
     /// </summary>
     public double ReactionMemoryWeight { get; set; } = 0.75;
 
@@ -183,7 +178,7 @@ public abstract partial class Exocortex<T>
 
         // Normalize to [0, 1]
         var finalWeight = (1 + cosineSimilarity) / 2f;
-        if (finalWeight > 1 || finalWeight < 0)
+        if (finalWeight > 1.0001 || finalWeight < 0)
             throw new ArgumentOutOfRangeException(nameof(finalWeight), "Memory weight out of range.");
 
         return (float)finalWeight;
@@ -294,12 +289,11 @@ public abstract partial class Exocortex<T>
         // Recollection memory
         // ---------------
         // Gather memories
-        // Starting with the most recent short-term memories (including the new prompt), each short-term memory pulls in the most recent and relevant memories to it from the long-term.   
-        var recollectionMemoriesWithWeights = new HashSet<(CortexMemory<T>, double)>(ShortTermMemories.Select(x => (Memory: x, Score: ShortTermDecayThreshold)));
+        // Starting with the most recent short-term memories (including the new prompt, excluding recollections), each short-term memory pulls in the most recent and relevant memories to it from the long-term.
+        var recollectionMemoriesWithWeights = new HashSet<(CortexMemory<T>, double)>(ShortTermMemories
+            .Where(x => x.Type != CortexMemoryType.Recollection) // The system may recall irrelevant information in the short term. Until recollection is more stable, this would add noise memories to short-term memory.
+            .Select(x => (Memory: x, Score: ShortTermDecayThreshold)));
 
-        // TODO:
-        // Recency isn't overtaking relevance at the very start of the memory stream, and we need more context than just what's related to the newest core memory.
-        // This is the same trick we used when gathering memories for clustering, in order to bypass the limitation in the Umap library that only allows us to cluster based on relevance.
         // The way limits are set up will ensure that we always have only the highest weighted MaxRelatedRecollectionClusterMemories seen, and we always end up with a total of MaxRelatedRecollectionClusterMemories.
         // but some replaced with memories that are related to other short-term memories, those which bear a higher weighted sum (recency, relevance, nostalgia, etc).
         // This also limits clustering to only cluster MaxRelatedRecollectionClusterMemories. Further investigation on the effects of this are required.
@@ -308,7 +302,7 @@ public abstract partial class Exocortex<T>
             // Find long-term memories that are weighted higher.
             var relatedToShortTermMemory = LongTermMemories
                 .Select(x => (Memory: x, Score: ComputeFullMemoryWeight(item.Item1, x.EmbeddingVectors)))
-                .OrderByDescending(x => x.Score)
+                .Where(x => x.Score >= ShortTermDecayThreshold)
                 .Take(MaxRelatedRecollectionClusterMemories * NumberOfDimensions)
                 .OrderBy(x => x.Memory.CreationTimestamp);
 
@@ -320,6 +314,7 @@ public abstract partial class Exocortex<T>
         // Grab a broad set of memories to reduce and cluster back into NumberOfDimensions via Umap / Hdbscan
         var recollectionMemories = recollectionMemoriesWithWeights
                 .Select(x => (Memory: x.Item1, Score: x.Item2))
+                .Where(x => x.Score >= ShortTermDecayThreshold)
                 .OrderByDescending(x => x.Score)
                 .Take(MaxRelatedRecollectionClusterMemories * NumberOfDimensions)
                 .Select(x => x.Memory)
@@ -332,8 +327,6 @@ public abstract partial class Exocortex<T>
             var dataPoints = recollectionMemories.Select(x => new CortexMemoryUmapDataPoint<T>(x)).ToArray();
 
             // UMAP Reduction
-            // TODO: UMAP and clustering should be based on the combined memory curve, not just relevancy.
-            // This is a limitation of the Umap library being used.
             var umap = new Umap<CortexMemoryUmapDataPoint<T>>((x, y) => (float)ComputeFullMemoryWeight(x, y.Memory.EmbeddingVectors), dimensions: NumberOfDimensions, numberOfNeighbors: 1);
             var numberOfEpochs = umap.InitializeFit(dataPoints);
             for (var i = 0; i < numberOfEpochs; i++)
@@ -369,14 +362,11 @@ public abstract partial class Exocortex<T>
                     // Retrieve original (non-reduced) memories in cluster
                     var clusterMemories = clusteredMemories
                         .Where(x => x.Label == cluster)
-                        .Select(x => (Memory: x.Memory, Score: ComputeFullMemoryWeight(x.Memory, rawMemoryEmbedding)))
-                        .OrderByDescending(x => x.Score)
-                        .Take(MaxRelatedRecollectionClusterMemories)
                         .OrderBy(x => x.Memory.CreationTimestamp)
                         .Select(x => x.Memory is ReducedCortexMemory<T> reduced ? reduced.OriginalMemory : x.Memory)
                         .ToList();
 
-                    if (clusterMemories.Count == 0)
+                    if (clusterMemories.Count < 2)
                         return null;
 
                     var recollectionMemory = await SummarizeMemoryInNewContext(newMemory, clusterMemories);
@@ -401,36 +391,24 @@ public abstract partial class Exocortex<T>
         // Relevance weights ensure we can filter through large volumes of incoming information, as well as clusters with no useful information.
 
         // Do not begin iteration with memories already added, or it may struggle to recall memories older than the ones provided.
-        // By iterating ShortTermMemories but comparing to all memories, it effectively replaces new memories with an older when the computed memory weight (recency, relevancy, nostalgia, etc) is higher than the original.
+        // By iterating ShortTermMemories but comparing to all memories, it effectively replaces new memories with an older one when the computed memory weight (recency, relevancy, nostalgia, etc) is higher than the original.
         // For the final reaction, we take `MaxRelatedReactionMemories` of the most recent memories, and starting with memories means they could be included regardless of their weights, if they're newer than the found memories.
         IEnumerable<CortexMemory<T>> reactionMemories = new HashSet<CortexMemory<T>>();
 
         // Gather memories
         // Clusters are formed from all long-term memories using similarity to short-term memories.
-        // TODO:        
-        // Recency isn't overtaking relevance at the very start of the memory stream, and we need more context than just what's related to the newest core memory.
-        // This is the same trick we used when gathering memories for clustering, in order to bypass the limitation in the Umap library that only allows us to cluster based on relevance.
-        // The way limits are set up will ensure that we always have MaxRelatedReactionMemories grabbed from short-term, and we always end up with MaxRelatedReactionMemories
-        // but some replaced with memories that are related to other short-term memories, those which bear a higher weighted sum (recency, relevance, nostalgia, etc).
         foreach (var memory in ShortTermMemories)
         {
             var relatedToShortTermMemory = Memories
                 .Select(x => (Memory: x, Score: ComputeFullMemoryWeight(x, memory.EmbeddingVectors)))
                 .OrderByDescending(x => x.Score)
                 .Take(MaxRelatedReactionMemories)
+                .Where(x => x.Score >= ShortTermDecayThreshold)
                 .Select(x => x.Memory);
 
             foreach (var related in relatedToShortTermMemory)
                 ((HashSet<CortexMemory<T>>)reactionMemories).Add(related);
         }
-
-        // Apply limits and sorting to memories in hashmap
-        reactionMemories = reactionMemories
-                .Select(x => (Memory: x, Score: ComputeFullMemoryWeight(x, newMemory.EmbeddingVectors)))
-                .OrderByDescending(x => x.Score)
-                .Take(MaxRelatedReactionMemories)
-                .Select(x => x.Memory)
-                .OrderBy(x => x.CreationTimestamp);
 
         var reaction = await ReactToMemoryAsync(newMemory, reactionMemories);
         var reactionEmbedding = await GenerateEmbeddingAsync(reaction);
