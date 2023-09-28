@@ -51,33 +51,32 @@ public abstract partial class Exocortex<T>
 
     /// <summary>
     /// Gets the threshold for determining when a short-term memory has effectively decayed.
-    /// The short-term decay threshold is a function of the duration of long-term memories. As the 
-    /// oldest memories in the system age, this threshold decreases, reflecting the idea that 
-    /// the boundary between short-term and long-term recall becomes more forgiving.
+    /// The short-term decay threshold is dynamically computed based on the duration of the system's long-term memories.
+    /// As the oldest memories in the system age, this threshold decreases, reflecting the idea that 
+    /// the boundary between short-term and long-term recall becomes more forgiving. The threshold ranges between 
+    /// T_min and T_max, which are defined in relation to the LongTermDecayThreshold.
     /// </summary>
     public double ShortTermDecayThreshold
     {
         get
         {
-            // Maximum possible value for the threshold.
-            double T_max = 1;
+            // Maximum possible value for the short-term decay threshold. 
+            double T_max = 1 - LongTermDecayThreshold;
 
-            // Minimum possible value for the threshold, taken from the LongTermDecayThreshold.
+            // Minimum possible value for the short-term decay threshold, 
             double T_min = LongTermDecayThreshold;
 
-            // Duration of long-term memory in hours.
+            // Duration of the oldest long-term memory in hours.
             double D_lt = LongTermMemoryDuration.TotalHours;
 
-            // Compute the logarithmic term. The "+ 1" inside the logarithm ensures that the value 
-            // inside the log is always greater than 1, preventing negative results.
-            double logTerm = Math.Log(1 + D_lt);
-
-            // Calculate the ShortTermDecayThreshold using the formula. The result is designed to 
-            // be between T_min and T_max based on the duration of the long-term memory.
-            // The longer the duration, the closer the threshold will be to T_max.
-            return T_min + (T_max - T_min) / (1 + logTerm);
+            // Calculate the ShortTermDecayThreshold using an exponential decay formula.
+            // The result is designed to be between T_min and T_max based on the duration 
+            // of the oldest long-term memory. The longer this duration, the closer the 
+            // threshold will be to T_min.
+            return T_min + T_max * Math.Exp(-0.00001 * D_lt);
         }
     }
+
 
     /// <summary>
     /// Gets or sets the threshold for determining when a long-term memory has effectively decayed.
@@ -120,12 +119,12 @@ public abstract partial class Exocortex<T>
     /// While core memories contain dense information, the recollections offer a summarized view, making them more suitable for quick 
     /// recall and relevance in ongoing conversations.
     /// </remarks>
-    public double RecalledWithContextMemoryWeight { get; set; } = 1.3;
+    public double RecalledWithContextMemoryWeight { get; set; } = 0.33;
 
     /// <summary>
     /// The weight used for reaction memories to a new core memory, with the recollections memories as added context.
     /// </summary>
-    public double ReactionMemoryWeight { get; set; } = 1;
+    public double ReactionMemoryWeight { get; set; } = 0.75;
 
     /// <summary>
     /// Represents the number of dimensions used for UMAP (Uniform Manifold Approximation and Reduction), as well as HDBSCAN. Defaults to 3 dimensions, results in an average of about 3 clusters.
@@ -223,10 +222,11 @@ public abstract partial class Exocortex<T>
         else
         {
             // Reversed Logarithmic decay for long-term memory
-            double decayRate = LongTermDecayRate;
-            double x = LongTermMemoryDuration.TotalHours;
+            double a = ShortTermDecayThreshold;
+            double b = (a - LongTermDecayThreshold) / Math.Log(LongTermMemoryDuration.TotalHours);
+            double c = 1;
 
-            var finalWeight = 1 - Math.Log(1 + decayRate * currentTime) / Math.Log(1 + decayRate * x);
+            var finalWeight = a - b * Math.Log(c * currentTime + 1);
             if (finalWeight > 1 || finalWeight < 0)
                 throw new ArgumentOutOfRangeException(nameof(finalWeight), "Memory weight out of range.");
 
