@@ -39,15 +39,6 @@ public abstract partial class Exocortex<T>
     /// </summary>
     public IEnumerable<CortexMemory<T>> LongTermMemories => Memories.Where(x => DateTime.Now - x.CreationTimestamp >= ShortTermMemoryDuration);
 
-    /// <summary>
-    /// Short-term memory decay rate (Exponential decay)
-    /// </summary>
-    public double ShortTermDecayRate => -Math.Log(ShortTermDecayThreshold) / ShortTermMemoryDuration.TotalHours;
-
-    /// <summary>
-    /// Long-term memory decay rate (Reversed Logarithmic decay)
-    /// </summary>
-    public double LongTermDecayRate => (Math.Exp(1 - LongTermDecayThreshold) - 1) / LongTermMemoryDuration.TotalHours;
 
     /// <summary>
     /// Gets the threshold for determining when a short-term memory has effectively decayed.
@@ -203,7 +194,7 @@ public abstract partial class Exocortex<T>
     /// </summary>
     /// /// <param name="creationTimestamp">The timestamp when the memory was created.</param>
     /// <returns>The recency score ranging from 0 (completely forgotten) to 1 (fully remembered).</returns>
-    public double ComputeRecencyScore(DateTime creationTimestamp)
+    public double ComputeRecencyWeight(DateTime creationTimestamp)
     {
         // Computes the recency score of a memory based on its creation timestamp 
         // using either the exponential decay model (short-term memory) or the 
@@ -213,7 +204,8 @@ public abstract partial class Exocortex<T>
         if (currentTime <= ShortTermMemoryDuration.TotalHours)
         {
             // Exponential decay for short-term memory
-            var finalWeight = Math.Exp(-ShortTermDecayRate * currentTime);
+            var shortTermDecayRate = -Math.Log(ShortTermDecayThreshold) / ShortTermMemoryDuration.TotalHours;
+            var finalWeight = Math.Exp(-shortTermDecayRate * currentTime);
             if (finalWeight > 1 || finalWeight < 0)
                 throw new ArgumentOutOfRangeException(nameof(finalWeight), "Memory weight out of range.");
 
@@ -247,10 +239,10 @@ public abstract partial class Exocortex<T>
     /// 3. Type: Different types of memories (e.g., core, recalled with context, reaction) might have different inherent weights.
     /// This method combines these factors to produce a composite weight for the memory.
     /// </remarks>
-    public double ComputeMemoryWeight(CortexMemory<T> memory, float[] queryEmbedding)
+    public double ComputeFullMemoryWeight(CortexMemory<T> memory, float[] queryEmbedding)
     {
         var relevance = ComputeCosineSimilarity(memory.EmbeddingVectors, queryEmbedding);
-        var recency = ComputeRecencyScore(memory.CreationTimestamp);
+        var recency = ComputeRecencyWeight(memory.CreationTimestamp);
 
         // Inverse of recency.
         // A slight boost to the end of short-term memory will develop after about a decade. Feature or bug? Adds attention to the end of the rolling context, may be good to keep.
@@ -315,7 +307,7 @@ public abstract partial class Exocortex<T>
         {
             // Find long-term memories that are weighted higher.
             var relatedToShortTermMemory = LongTermMemories
-                .Select(x => (Memory: x, Score: ComputeMemoryWeight(item.Item1, x.EmbeddingVectors)))
+                .Select(x => (Memory: x, Score: ComputeFullMemoryWeight(item.Item1, x.EmbeddingVectors)))
                 .OrderByDescending(x => x.Score)
                 .Take(MaxRelatedRecollectionClusterMemories * NumberOfDimensions)
                 .OrderBy(x => x.Memory.CreationTimestamp);
@@ -342,7 +334,7 @@ public abstract partial class Exocortex<T>
             // UMAP Reduction
             // TODO: UMAP and clustering should be based on the combined memory curve, not just relevancy.
             // This is a limitation of the Umap library being used.
-            var umap = new Umap<CortexMemoryUmapDataPoint<T>>((x, y) => (float)ComputeMemoryWeight(x, y.Memory.EmbeddingVectors), dimensions: NumberOfDimensions, numberOfNeighbors: 1);
+            var umap = new Umap<CortexMemoryUmapDataPoint<T>>((x, y) => (float)ComputeFullMemoryWeight(x, y.Memory.EmbeddingVectors), dimensions: NumberOfDimensions, numberOfNeighbors: 1);
             var numberOfEpochs = umap.InitializeFit(dataPoints);
             for (var i = 0; i < numberOfEpochs; i++)
                 umap.Step();
@@ -377,7 +369,7 @@ public abstract partial class Exocortex<T>
                     // Retrieve original (non-reduced) memories in cluster
                     var clusterMemories = clusteredMemories
                         .Where(x => x.Label == cluster)
-                        .Select(x => (Memory: x.Memory, Score: ComputeMemoryWeight(x.Memory, rawMemoryEmbedding)))
+                        .Select(x => (Memory: x.Memory, Score: ComputeFullMemoryWeight(x.Memory, rawMemoryEmbedding)))
                         .OrderByDescending(x => x.Score)
                         .Take(MaxRelatedRecollectionClusterMemories)
                         .OrderBy(x => x.Memory.CreationTimestamp)
@@ -423,7 +415,7 @@ public abstract partial class Exocortex<T>
         foreach (var memory in ShortTermMemories)
         {
             var relatedToShortTermMemory = Memories
-                .Select(x => (Memory: x, Score: ComputeMemoryWeight(x, memory.EmbeddingVectors)))
+                .Select(x => (Memory: x, Score: ComputeFullMemoryWeight(x, memory.EmbeddingVectors)))
                 .OrderByDescending(x => x.Score)
                 .Take(MaxRelatedReactionMemories)
                 .Select(x => x.Memory);
@@ -434,7 +426,7 @@ public abstract partial class Exocortex<T>
 
         // Apply limits and sorting to memories in hashmap
         reactionMemories = reactionMemories
-                .Select(x => (Memory: x, Score: ComputeMemoryWeight(x, newMemory.EmbeddingVectors)))
+                .Select(x => (Memory: x, Score: ComputeFullMemoryWeight(x, newMemory.EmbeddingVectors)))
                 .OrderByDescending(x => x.Score)
                 .Take(MaxRelatedReactionMemories)
                 .Select(x => x.Memory)

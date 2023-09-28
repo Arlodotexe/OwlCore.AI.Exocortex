@@ -22,5 +22,5 @@ public struct CortexMemoryDistanceSpace<T> : IDistanceCalculator<CortexMemory<T>
     }
 
     /// <inheritdoc/>
-    public double ComputeDistance(int indexOne, int indexTwo, CortexMemory<T> attributesOne, CortexMemory<T> attributesTwo) => _exocortex.ComputeMemoryWeight(attributesOne, attributesTwo.EmbeddingVectors);
+    public double ComputeDistance(int indexOne, int indexTwo, CortexMemory<T> attributesOne, CortexMemory<T> attributesTwo) => _exocortex.ComputeFullMemoryWeight(attributesOne, attributesTwo.EmbeddingVectors);
 }
