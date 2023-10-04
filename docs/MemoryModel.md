@@ -23,7 +23,7 @@ var finalWeight = relevance * recency * typeWeight;
 The formula was changed to:
 
 ```cs
-var nostalgiaWeight = 1 - ComputeRecencyScore(memory.CreationTimestamp); // Inverse of recency
+var nostalgiaWeight = 1 - recency; // Inverse of recency
 var finalWeight = ((relevance * nostalgiaWeight) + recency) * typeWeight;
 ```
 
