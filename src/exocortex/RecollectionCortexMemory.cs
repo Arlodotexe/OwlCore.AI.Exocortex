@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace OwlCore.AI.Exocortex;
 
@@ -15,8 +16,9 @@ public record RecollectionCortexMemory<T> : CortexMemory<T>
     /// <param name="content">The raw content of the memory.</param>
     /// <param name="embeddingVector">The vectorized embeddings that represent this memory.</param>
     /// <param name="recalledMemories">The memories that were recalled to create this.</param>
-    public RecollectionCortexMemory(T content, float[] embeddingVector, IEnumerable<CortexMemory<T>> recalledMemories)
-        : base(content, embeddingVector)
+    /// <param name="creationTimestamp">Gets the timestamp of when this memory was created.</param>
+    public RecollectionCortexMemory(T content, float[] embeddingVector, IEnumerable<CortexMemory<T>> recalledMemories, DateTime creationTimestamp)
+        : base(content, embeddingVector, creationTimestamp)
     {
         Type = CortexMemoryType.Recollection;
         RecalledMemories = recalledMemories;

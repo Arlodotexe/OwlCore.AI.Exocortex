@@ -13,10 +13,12 @@ public record CortexMemory<T> : IComparable<CortexMemory<T>>
     /// </summary>
     /// <param name="content">The raw content of the memory.</param>
     /// <param name="embeddingVectors">The vectorized embeddings that represent this memory.</param>
-    public CortexMemory(T content, float[] embeddingVectors)
+    /// <param name="creationTimestamp">Gets the timestamp of when this memory was created.</param>
+    public CortexMemory(T content, float[] embeddingVectors, DateTime creationTimestamp)
     {
         Content = content;
         EmbeddingVectors = embeddingVectors;
+        CreationTimestamp = creationTimestamp;
     }
 
     /// <summary>
@@ -32,7 +34,7 @@ public record CortexMemory<T> : IComparable<CortexMemory<T>>
     /// <summary>
     /// Gets the timestamp of when this memory was created.
     /// </summary>
-    public DateTime CreationTimestamp { get; init; } = DateTime.Now;
+    public DateTime CreationTimestamp { get; init; }
 
     /// <summary>
     /// Gets the embedding vector representing the content of this memory.

@@ -1,4 +1,6 @@
-﻿namespace OwlCore.AI.Exocortex;
+﻿using System;
+
+namespace OwlCore.AI.Exocortex;
 
 /// <summary>
 /// Represents a memory with reduced embeddings.
@@ -11,8 +13,9 @@ public record ReducedCortexMemory<T> : CortexMemory<T>
     /// </summary>
     /// <param name="reducedEmbeddingVectors">The vectorized embeddings that represent this memory.</param>
     /// <param name="originalMemory">The original memory was reduced to create this.</param>
-    public ReducedCortexMemory(float[] reducedEmbeddingVectors, CortexMemory<T> originalMemory)
-        : base(originalMemory.Content, reducedEmbeddingVectors)
+    /// <param name="creationTimestamp">Gets the timestamp of when this memory was created.</param>
+    public ReducedCortexMemory(float[] reducedEmbeddingVectors, CortexMemory<T> originalMemory, DateTime creationTimestamp)
+        : base(originalMemory.Content, reducedEmbeddingVectors, creationTimestamp)
     {
         Type = CortexMemoryType.Recollection;
         OriginalMemory = originalMemory;
@@ -22,7 +25,7 @@ public record ReducedCortexMemory<T> : CortexMemory<T>
     /// The memories that were recalled to create this memory.
     /// </summary>
     public CortexMemory<T> OriginalMemory { get; }
-    
+
     /// <inheritdoc/>
     public override string ToString()
     {
