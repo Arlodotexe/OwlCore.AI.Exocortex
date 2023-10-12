@@ -6,6 +6,35 @@ namespace OwlCore.AI.Exocortex;
 public class SemanticLogicGates
 {
     /// <summary>
+    /// Represents the Semantic Void operation, returning a vector that denotes the absence of any semantic information.
+    /// </summary>
+    /// <param name="v">
+    /// The input vector. While it's provided as a parameter, its values are not directly used by the function. The length is used to produce a vector array of the same size.
+    /// Example: Given an input vector representing the concept "apple", the output would be a zero vector, indicating the absence of any semantic meaning.
+    /// </param>
+    /// <example>
+    /// Input: "apple"
+    /// Expected Output: "absence of semantic meaning"
+    /// 
+    /// Input: "music"
+    /// Expected Output: "absence of semantic meaning"
+    /// 
+    /// Input: "happiness"
+    /// Expected Output: "absence of semantic meaning"
+    /// </example>
+    /// <returns>
+    /// A zero vector of the same dimensionality as the input vector, representing the complete absence of semantic information.
+    /// Example: For an input vector of dimensionality 3, the output would be [0, 0, 0].
+    /// </returns>
+    /// <remarks>
+    /// The S-VOID operation is useful in scenarios where you want to explicitly represent the concept of "nothingness" or absence in a semantic space. It provides a neutral point with no direction or magnitude in the space.
+    /// </remarks>
+    public float[] S_VOID(params float[] v)
+    {
+        return v.Select(x => 0f).ToArray();
+    }
+
+    /// <summary>
     /// Computes the Semantic AND of the provided vectors.
     /// </summary>
     /// <param name="vectors">The vectors to combine using S-AND.</param>
@@ -29,7 +58,8 @@ public class SemanticLogicGates
     /// </remarks>
     public static float[] S_AND(params float[][] vectors)
     {
-        if (vectors.Length == 0) return null;
+        if (vectors.Length == 0)
+            throw new ArgumentException();
 
         int dimension = vectors[0].Length;
         if (vectors.Any(v => v.Length != dimension))
@@ -69,7 +99,8 @@ public class SemanticLogicGates
     /// </remarks>
     public static float[] S_OR(params float[][] vectors)
     {
-        if (vectors.Length == 0) return null;
+        if (vectors.Length == 0)
+            throw new ArgumentException();
 
         int dimension = vectors[0].Length;
         if (vectors.Any(v => v.Length != dimension))
@@ -190,7 +221,8 @@ public class SemanticLogicGates
     /// </remarks>
     public static float[] S_XOR(params float[][] vectors)
     {
-        if (vectors.Length == 0) return null;
+        if (vectors.Length == 0)
+            throw new ArgumentException();
 
         int dimension = vectors[0].Length;
         if (vectors.Any(v => v.Length != dimension))
@@ -235,6 +267,52 @@ public class SemanticLogicGates
     }
 
     /// <summary>
+    /// Computes the Semantic LIKE operation between two vectors.
+    /// </summary>
+    /// <param name="vectorA">The first input vector.</param>
+    /// <param name="vectorB">The second input vector.</param>
+    /// <returns>The cosine similarity between the two vectors.</returns>
+    /// <example>
+    /// Input: "apple" and "fruit"
+    /// Expected Output: A value close to 1 indicating high similarity.
+    /// 
+    /// Input: "apple" and "car"
+    /// Expected Output: A value close to 0 indicating low similarity.
+    /// </example>
+    /// <remarks>
+    /// This function computes the cosine similarity between two vectors, indicating how similar they are in a semantic space.
+    /// </remarks>
+    public static float S_LIKE(float[] vectorA, float[] vectorB)
+    {
+        var dotProduct = vectorA.Zip(vectorB, (a, b) => a * b).Sum();
+        var magnitudeA = Math.Sqrt(vectorA.Sum(a => a * a));
+        var magnitudeB = Math.Sqrt(vectorB.Sum(b => b * b));
+
+        return (float)(dotProduct / (magnitudeA * magnitudeB));
+    }
+
+    /// <summary>
+    /// Computes the Semantic NOTLIKE operation between two vectors.
+    /// </summary>
+    /// <param name="vectorA">The first input vector.</param>
+    /// <param name="vectorB">The second input vector.</param>
+    /// <returns>The cosine distance between the two vectors.</returns>
+    /// <example>
+    /// Input: "apple" and "fruit"
+    /// Expected Output: A value close to 0 indicating low difference.
+    /// 
+    /// Input: "apple" and "car"
+    /// Expected Output: A value closer to 1 indicating high difference.
+    /// </example>
+    /// <remarks>
+    /// This function computes the cosine distance between two vectors, indicating how different they are in a semantic space.
+    /// </remarks>
+    public static float S_NOTLIKE(float[] vectorA, float[] vectorB)
+    {
+        return 1 - S_LIKE(vectorA, vectorB);
+    }
+
+    /// <summary>
     /// Performs the Semantic IMPLY operation on two vectors.
     /// </summary>
     /// <param name="vectorA">The first input vector representing a concept. E.g., "rain", "homework", "sun".</param>
@@ -260,35 +338,6 @@ public class SemanticLogicGates
     public static float[] S_IMPLY(float[] vectorA, float[] vectorB)
     {
         return S_OR(S_NOT(vectorA), vectorB);
-    }
-
-    /// <summary>
-    /// Represents the Semantic Void operation, returning a vector that denotes the absence of any semantic information.
-    /// </summary>
-    /// <param name="v">
-    /// The input vector. While it's provided as a parameter, its values are not directly used by the function. The length is used to produce a vector array of the same size.
-    /// Example: Given an input vector representing the concept "apple", the output would be a zero vector, indicating the absence of any semantic meaning.
-    /// </param>
-    /// <example>
-    /// Input: "apple"
-    /// Expected Output: "absence of semantic meaning"
-    /// 
-    /// Input: "music"
-    /// Expected Output: "absence of semantic meaning"
-    /// 
-    /// Input: "happiness"
-    /// Expected Output: "absence of semantic meaning"
-    /// </example>
-    /// <returns>
-    /// A zero vector of the same dimensionality as the input vector, representing the complete absence of semantic information.
-    /// Example: For an input vector of dimensionality 3, the output would be [0, 0, 0].
-    /// </returns>
-    /// <remarks>
-    /// The S-VOID operation is useful in scenarios where you want to explicitly represent the concept of "nothingness" or absence in a semantic space. It provides a neutral point with no direction or magnitude in the space.
-    /// </remarks>
-    public float[] S_VOID(params float[] v)
-    {
-        return v.Select(x => 0f).ToArray();
     }
 
     /// <summary>
