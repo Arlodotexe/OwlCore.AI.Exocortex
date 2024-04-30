@@ -2,10 +2,11 @@
 
 Inspired by the paper "Generative Agents: Interactive Simulacra of Human Behavior"[^1]
 
-The creation of an Exocortex is part of a larger exploration into the "Symbiosis of Artificial and Human Intelligence"[^3].
-
-> **Important**  
-> The code is being iterated on faster than the README, and it may be out of date as a result.
+> **Important**
+> 
+> While the research remains sound on paper, the working prototype is incomplete.
+> 
+> This project is on ice until I can dedicate more time to building with LLMs. 
 
 > **Note**  
 > Our finished research on memory curves now available in [docs/MemoryModel.md](https://github.com/Arlodotexe/OwlCore.AI.Exocortex/blob/main/docs/MemoryModel.md)
