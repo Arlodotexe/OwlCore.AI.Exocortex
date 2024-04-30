@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Diagnostics;
 using HdbscanSharp.Distance;
+using System;
 
 namespace OwlCore.AI.Exocortex;
 
