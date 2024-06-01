@@ -1,13 +1,18 @@
 ﻿using HdbscanSharp.Distance;
+using HdbscanSharp.Hdbscanstar;
 using HdbscanSharp.Runner;
 using OwlCore.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
+using System.Drawing;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using OwlCore.Storage.SystemIO;
 using UMAP;
 
 namespace OwlCore.AI.Exocortex;
@@ -86,12 +91,12 @@ public abstract partial class Exocortex<T>
     /// <summary>
     /// Gets or sets the threshold for determining when a long-term memory has effectively decayed.
     /// </summary>
-    public float LongTermDecayThreshold { get; set; } = 0.1f;
+    public float LongTermDecayThreshold { get; set; } = 0.01f;
 
     /// <summary>
     /// Gets the duration for which a memory is considered as short-term before decaying to a specific threshold <see cref="ShortTermDecayThreshold"/>.
     /// </summary>
-    public TimeSpan ShortTermMemoryDuration { get; set; } = TimeSpan.FromHours(2);
+    public TimeSpan ShortTermMemoryDuration { get; set; } = TimeSpan.FromHours(8);
 
     /// <summary>
     /// Gets or sets the duration for which a memory remains in long-term storage before decaying to a specific threshold <see cref="LongTermDecayThreshold"/>.
@@ -119,7 +124,7 @@ public abstract partial class Exocortex<T>
     /// <summary>
     /// A weight between 0 and 1 used for summary memories of the conversation where old and new context are combined.
     /// </summary>
-    public double RecalledWithContextMemoryWeight { get; set; } = 0.33;
+    public double RecalledWithContextMemoryWeight { get; set; } = 1;
 
     /// <summary>
     /// A weight between 0 and 1 used for reaction memories to a new core memory, with the recollections memories as added context.
@@ -136,10 +141,6 @@ public abstract partial class Exocortex<T>
     /// 
     /// - **Higher Dimensions (4, 5, ...)**: Increasing dimensions allows UMAP to preserve more of the local and global data structure. This can lead to a clearer separation of clusters in the higher-dimensional space. However, clustering algorithms might behave differently in higher dimensions due to the "curse of dimensionality". In higher dimensions, the distance between data points tends to become more uniform, making it harder to define dense regions.
     /// 
-    /// The relationship between MaxRelatedRecollectionClusterMemories and NumberOfDimensions has shown to produce consistent clustering patterns. By multiplying MaxRelatedRecollectionClusterMemories by NumberOfDimensions, data is allowed to expand in the reduced space, potentially capturing more nuances. However, the exact behavior will depend on the inherent structure of your data and the interplay between UMAP and HDBSCAN. 
-    /// 
-    /// While maintaining this relationship can lead to consistent clustering, the exact number of clusters and their structure might vary based on the data and specific parameter values.
-    /// 
     /// It's encouraged to experiment with different values and analyze the empirical results to get a clearer understanding of the effects.
     /// </remarks>
     public int NumberOfDimensions { get; set; } = 3;
@@ -150,7 +151,7 @@ public abstract partial class Exocortex<T>
     /// <remarks>
     /// The value should be near the current <see cref="ShortTermDecayThreshold"/>, either above or below depending on your needs.
     /// </remarks>
-    public double WorkingRecollectionMemoryWeightThreshold => 1 - ((1 - ShortTermDecayThreshold) * WorkingRecollectionMemoryDistanceThreshold);
+    public double WorkingRecollectionMemoryWeightThreshold => ShortTermDecayThreshold + ((1 - ShortTermDecayThreshold) * WorkingRecollectionMemoryDistanceThreshold);
 
     /// <summary>
     /// Represents the distance into the short-term memory that a long-term memory must be weighted in order to be included as a working memory. The value should be near the current <see cref="ShortTermDecayThreshold"/>, either above or below depending on your needs.
@@ -163,17 +164,17 @@ public abstract partial class Exocortex<T>
     /// <para/>  In psychology and neuroscience, memory span is the longest list of items that a person can repeat back in correct order immediately after presentation on 50% of all trials.
     /// <para/> This is the "Magic Number 7, plug or minus 2", and is controlled here.
     /// <para/> In the exocortex, the number of memories retrieved over 100 runs should average out to 7-8 when set to 0.25. No matter what value is set, results are halfed roughly every 100 years.
-    /// <para/> The probability of correct recall for information presented depends on the capabilities of the LLM being used and the size of each memory provided.
+    /// <para/> The probability of correct recall for information presented depends on the capabilities of the LLM being used, the number of memories recalled, and the size of each memory provided.
     /// </remarks>
-    public double WorkingRecollectionMemoryDistanceThreshold { get; set; } = 0.9f;
+    public double WorkingRecollectionMemoryDistanceThreshold { get; set; } = 0.25f;
 
-    /// <summary>
+    /// <summary>ww
     /// Require memories to rank above this threshold to be used for working memory.
     /// </summary>
     /// <remarks>
     /// The value should be near the current <see cref="ShortTermDecayThreshold"/>, either above or below depending on your needs.
     /// </remarks>
-    public float WorkingReactionMemoryWeightThreshold => 1 - ((1 - ShortTermDecayThreshold) * WorkingReactionMemoryDistanceThreshold);
+    public float WorkingReactionMemoryWeightThreshold => ShortTermDecayThreshold + ((1 - ShortTermDecayThreshold) * WorkingReactionMemoryDistanceThreshold);
 
     /// <summary>
     /// Represents the distance into the short-term memory that a long memory must be weighted in order to be included as a working memory.
@@ -184,11 +185,11 @@ public abstract partial class Exocortex<T>
     /// <para/> The amount here determines distance into short-term memory a memory needs to be boosted (indirectly, how much relevancy should overtake recency) in order to be included in working memory.
     ///
     /// <para/>  In psychology and neuroscience, memory span is the longest list of items that a person can repeat back in correct order immediately after presentation on 50% of all trials.
-    /// <para/> This is the "Magic Number 7, plug or minus 2", and is controlled here.
-    /// <para/> In the exocortex, the number of memories retrieved over 100 runs should zaverage out to 7-8 when set to 0.25. No matter what value is set, results are halfed roughly every 100 years.
-    /// <para/> The probability of correct recall for information presented depends on the capabilities of the LLM being used and the size of each memory provided.
+    /// <para/> This is the "Magic Number 7, plus or minus 2", and is controlled here.
+    /// <para/> In the exocortex, the number of memories retrieved over 100 runs should average out to 7-8 when set to 0.25. No matter what value is set, results are halfed roughly every 100 years.
+    /// <para/> The probability of correct recall for information presented depends on the capabilities of the LLM being used, the number of memories recalled, and the size of each memory provided.
     /// </remarks>
-    public float WorkingReactionMemoryDistanceThreshold { get; set; } = 0.1f;
+    public float WorkingReactionMemoryDistanceThreshold { get; set; } = 0.25f;
 
     /// <summary>
     /// Defines how the Exocortex should rewrite memories under the context of related memories.
@@ -241,6 +242,9 @@ public abstract partial class Exocortex<T>
     /// <returns>The recency score ranging from 0 (completely forgotten) to 1 (fully remembered).</returns>
     public double ComputeRecencyWeight(DateTime creationTimestamp)
     {
+        var maxLifetime = LongTermMemoryDuration.TotalHours;
+        double baseE = Math.E;
+
         // Computes the recency score of a memory based on its creation timestamp 
         // using either the exponential decay model (short-term memory) or the 
         // reversed logarithmic decay model (long-term memory).
@@ -259,11 +263,12 @@ public abstract partial class Exocortex<T>
         else
         {
             // Reversed Logarithmic decay for long-term memory
-            double a = ShortTermDecayThreshold;
-            double b = (a - LongTermDecayThreshold) / Math.Log(LongTermMemoryDuration.TotalHours);
-            double c = 1;
+            double a = LongTermDecayThreshold;
+            double b = (maxLifetime - LongTermMemoryDuration.TotalHours) * (-Math.Log(baseE) / Math.Log(maxLifetime));
 
-            var finalWeight = a - b * Math.Log(c * currentTime + 1);
+            var remainingLifetime = currentTime - maxLifetime;
+            double finalWeight = a * Math.Pow(baseE, -b * remainingLifetime / maxLifetime);
+
             if (finalWeight > 1 || finalWeight < 0)
                 throw new ArgumentOutOfRangeException(nameof(finalWeight), "Memory weight out of range.");
 
@@ -284,22 +289,8 @@ public abstract partial class Exocortex<T>
     /// 3. Type: Different types of memories (e.g., core, recalled with context, reaction) might have different inherent weights.
     /// This method combines these factors to produce a composite weight for the memory.
     /// </remarks>
-    public double ComputeFullMemoryWeight(CortexMemory<T> memory, float[] queryEmbedding)
+    public virtual double ComputeFullMemoryWeight(CortexMemory<T> memory, float[] queryEmbedding)
     {
-        var relevance = ComputeCosineSimilarity(memory.EmbeddingVectors, queryEmbedding);
-        var recency = ComputeRecencyWeight(memory.CreationTimestamp);
-
-        // The intersection point of recency and nostalgia curves inline
-        // This is a constant since the nostalgia curve is the inverse of the recency curve after a certain point.
-        const double intersectionPoint = 0.5;
-
-        // Inverse of recency, starting at the intersection point with the recency curve.
-        // No nostalgia boost is used on memories where it would reduce relevance (before the intersection point).
-        // A slight boost to the end of short-term memory will develop after about a decade. Feature or bug? Adds attention to the end of the rolling context, may be good to keep.
-        double? nostalgia = null;
-        if (recency > intersectionPoint)
-            nostalgia = 1 - recency;
-
         var typeWeight = memory.Type switch
         {
             CortexMemoryType.Core => CoreMemoryWeight,
@@ -308,14 +299,44 @@ public abstract partial class Exocortex<T>
             _ => throw new NotImplementedException(),
         };
 
-        var finalWeight = ((nostalgia ?? 1 * relevance) + recency) * typeWeight;
+        var relevance = ComputeCosineSimilarity(memory.EmbeddingVectors, queryEmbedding);
+        var recency = (float)ComputeRecencyWeight(memory.CreationTimestamp);
 
-        Debug.WriteLine($"Nostalgia: {nostalgia}, Relevance: {relevance}, Recency: {recency}, finalWeight: {finalWeight}, CreationTimestamp: {memory.CreationTimestamp}, Content: {memory.Content}");
-        if (finalWeight > 2 || finalWeight < 0)
+        // Relevance-based nostalgia is used to counter the weight of older memories that are still relevant.
+        // The intersection point of recency and nostalgia curves.
+        // This is a constant since the nostalgia curve is the inverse of the recency curve after a certain point.
+        const float intersectionPoint = 0.5f;
+
+        // Inverse of recency, starting at the intersection point with the recency curve.
+        // No nostalgia boost is used on memories where it would reduce relevance (before the intersection point).
+        // A slight boost to the end of short-term memory will develop after about a decade. Feature or bug? Adds attention to the end of the rolling context, may be good to keep.
+        float? nostalgia = recency <= intersectionPoint ? (recency - 1.00001f) + 1 : null;
+
+        // Merge these values as if they operate on the same one-dimensional axis (using addition)
+        // Creates a symmetrical 1-dimensional value that cleanly represents 2 dimensions (via logical OR operation / addition).
+        var relativeSumNostalgia = (nostalgia ?? 0) + relevance;
+
+        // Merge these values as if they're being crossed on two orthogonal one-dimensional axis (using multiplication).
+        // Creates a symmetrical 1-dimensional value that cleanly represents 2 dimensions (via logical AND operation / multiplication).
+        var relativeCrossNostalgia = (nostalgia ?? -1.00001f) * relevance;
+
+        // This is the remainder of the differences between 2 one-dimensional values with external symmetry (effectively, two 2-dimensional values with internal symmetry)
+        // we can combine these and reduce by 1 dimension using the Pythagorean theorem
+        var relativeNostalgia = Math.Sqrt(relativeSumNostalgia + relativeCrossNostalgia);
+
+        var finalWeight = relativeNostalgia * typeWeight;
+
+        MemoryJson.Add($"{{ {nameof(nostalgia)}: {nostalgia?.ToString() ?? "null"}, {nameof(relevance)}: {relevance}, {nameof(recency)}: {recency}, unix_timestamp: {((DateTimeOffset)memory.CreationTimestamp).ToUnixTimeMilliseconds()}, {nameof(finalWeight)}: {finalWeight} }},");
+
+        // Using 4 as the limiter since 4 dimensions will naturally collapse back to 2 when reduced, and our operations are purely 2-dimensional.
+        // We should never be able to exceed a value of 4.
+        if (finalWeight > 4 || finalWeight < 0)
             throw new ArgumentOutOfRangeException(nameof(finalWeight), "Memory weight out of range.");
 
         return finalWeight;
     }
+
+    private List<string> MemoryJson = new List<string>();
 
     /// <summary>
     /// Adds a new memory to the Exocortex, turning objective experiences into subjective experiences.
@@ -340,15 +361,26 @@ public abstract partial class Exocortex<T>
         // Recollection memory
         // ---------------
         // Gather memories
-        // Starting with the most recent short-term memories (including the new prompt, excluding recollections), each short-term memory pulls in the most recent and relevant memories to it from the long-term.
+        // Starting with the most recent short-term memories (including the new prompt), each short-term memory pulls in the most recent and relevant memories to it from the long-term.
         var recollectionMemories = ShortTermMemories
-            .OrderByDescending(m => m.CreationTimestamp)
-            .Take(7)
-            .SelectMany(stMemory => LongTermMemories.Select(ltMemory => new WorkingCortexMemory<T>(ltMemory, ComputeFullMemoryWeight(ltMemory, stMemory.EmbeddingVectors))))
-            .Where(x => x.Score >= WorkingRecollectionMemoryWeightThreshold)
+            .SelectMany(stMemory => ActiveMemories.Select(ltMemory => new WorkingCortexMemory<T>(ltMemory, ComputeFullMemoryWeight(ltMemory, stMemory.EmbeddingVectors))))
                 .GroupBy(x => x.WeighedMemory) // DistinctBy
                 .Select(g => g.First())
+            //.Where(x => x.Score >= WorkingRecollectionMemoryWeightThreshold)
             .ToList();
+
+        var jsonInner = MemoryJson.Aggregate((x, y) => $"{x}{Environment.NewLine}{y}").TrimEnd(',');
+        var json = $"[ {Environment.NewLine} {jsonInner} {Environment.NewLine} ]";
+        var jsonRawBytes = Encoding.UTF8.GetBytes(json);
+
+        var file = new SystemFile("D:\\source\\dotnet\\core\\LlmPlayground\\OwlCore.AI.Exocortex\\docs\\plotting\\file.json");
+
+        var stream = await file.OpenStreamAsync(FileAccess.Write);
+        stream.Seek(0, SeekOrigin.Begin);
+        await stream.WriteAsync(jsonRawBytes, 0, jsonRawBytes.Length);
+        stream.SetLength(jsonRawBytes.Length);
+
+        stream.Dispose();
 
         if (recollectionMemories.Count > NumberOfDimensions) // Number of dimensions roughly determines number of clusters and their sizes. We need enough memories to do clustering.
         {
@@ -356,7 +388,7 @@ public abstract partial class Exocortex<T>
             var dataPoints = recollectionMemories.Select(x => new CortexMemoryUmapDataPoint<T>(x)).ToArray();
 
             // UMAP Reduction
-            var umap = new Umap<CortexMemoryUmapDataPoint<T>>((x, y) => (float)ComputeFullMemoryWeight(x, y.Memory.EmbeddingVectors), dimensions: NumberOfDimensions, numberOfNeighbors: NumberOfDimensions);
+            var umap = new Umap<CortexMemoryUmapDataPoint<T>>((x, y) => (float)new CortexMemoryDistanceSpace<T>(this).ComputeDistance(0, 0, x, y), dimensions: NumberOfDimensions, numberOfNeighbors: NumberOfDimensions);
             var numberOfEpochs = umap.InitializeFit(dataPoints);
             for (var i = 0; i < numberOfEpochs; i++)
                 umap.Step();
@@ -371,8 +403,20 @@ public abstract partial class Exocortex<T>
             var clusterResult = HdbscanRunner.Run(new HdbscanParameters<CortexMemory<T>>
             {
                 DataSet = recollectionMemoriesWithReducedDimensions, // double[][] for normal matrix or Dictionary<int, int>[] for sparse matrix
-                MinPoints = NumberOfDimensions * 3,
-                MinClusterSize = NumberOfDimensions,
+
+                // MinPoints determines the minimum size of the "core" group of points which are closely packed together in the space. In the context of memory recall:
+                // - A larger MinPoints value will result in fewer points being considered as core points, leading to fewer and larger clusters.
+                //   This may simulate a more generalized memory recall where fewer but broader topics are recalled.
+                // - A smaller MinPoints value will allow more points to be considered as core points, leading to more and smaller clusters.
+                //   This might be useful for detailed and specific memory recall, as it will form more clusters representing nuanced memories.
+                MinPoints = 3,
+
+                // MinClusterSize defines the smallest size a group of points can be to be considered a cluster, rather than noise.
+                // - A larger MinClusterSize will result in larger, but fewer clusters.
+                //   This means your exocortex would prioritize forming significant memory clusters and disregarding less substantial ones.
+                // - A smaller MinClusterSize allows the formation of smaller clusters, which could represent more specific memory recalls.
+                //   However, too small a size could also pick up noise as valid clusters, which might lead to recalling irrelevant or less important memories.
+                MinClusterSize = 3,
                 CacheDistance = false, // using caching for distance throws unexpectedly
                 MaxDegreeOfParallelism = 0, // to indicate all threads, you can specify 0.
                 DistanceFunction = new CortexMemoryDistanceSpace<T>(this)
@@ -423,12 +467,11 @@ public abstract partial class Exocortex<T>
         // By iterating ShortTermMemories but comparing to all memories, it effectively replaces new memories with an older one when the computed memory weight (recency, relevancy, nostalgia, etc) is higher than the original.
         // For the final reaction, we take `MaxRelatedReactionMemories` of the most recent memories, and starting with memories means they could be included regardless of their weights, if they're newer than the found memories.
         var reactionMemories = ShortTermMemories
-            .Select(x => new WorkingCortexMemory<T>(x, WorkingReactionMemoryWeightThreshold))
-            .SelectMany(stMem => ActiveMemories.Select(activeMem => new WorkingCortexMemory<T>(activeMem, ComputeFullMemoryWeight(activeMem, stMem.EmbeddingVectors))))
+            .SelectMany(stMem => ActiveMemories.Select(ltMem => new WorkingCortexMemory<T>(stMem, ComputeFullMemoryWeight(ltMem, stMem.EmbeddingVectors))))
+            .Where(x => x.Score >= WorkingReactionMemoryWeightThreshold)
             .OrderBy(x => x.CreationTimestamp)
                 .GroupBy(x => x.WeighedMemory) // DistinctBy
-                .Select(g => g.First())
-            .Where(x => x.Score >= WorkingReactionMemoryWeightThreshold);
+                .Select(g => g.First());
 
         ////////////////
         // NOTES
@@ -440,8 +483,8 @@ public abstract partial class Exocortex<T>
         // - Reconsider how clustering fits into the picture. We need clustering in order to create that rolling context
         //   But perhaps it would be better suited as a way to consolidate down all the possible memories into just a few?
         //   It would still have the same effect, and could still be labeled as "recollection".
+        var reaction = await ReactToMemoryAsync(newMemory, reactionMemories.OrderBy(x => x.CreationTimestamp));
 
-        var reaction = await ReactToMemoryAsync(newMemory, reactionMemories);
         var reactionEmbedding = await GenerateEmbeddingAsync(reaction);
 
         var reactionMemory = new CortexMemory<T>(reaction, reactionEmbedding, PresentDateTime)
