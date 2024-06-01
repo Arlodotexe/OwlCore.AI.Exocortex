@@ -3,11 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.32802.463
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OwlCore.AI.Exocortex", "src\OwlCore.AI.Exocortex.csproj", "{4103C486-827D-4DDC-A600-752D8DD3D6E0}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OwlCore.AI.Exocortex.Tests", "tests\OwlCore.AI.Exocortex.Tests.csproj", "{47D65BC3-7E88-49A3-8A8A-773410E39F74}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UMAP", "..\..\LlmPlayground\OwlCore.AI.Exocortex\src\OwlCore.AI.Exocortex\UMAP\UMAP.csproj", "{5CEF3764-2977-46C1-B4A1-5A050852E940}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UMAP", "src\umap\UMAP\UMAP.csproj", "{F9323935-EC6F-4146-91AD-EA89B17677E1}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OwlCore.AI.Exocortex", "src\exocortex\OwlCore.AI.Exocortex.csproj", "{F1469947-57A7-463D-BEF9-EB1F4F5F47BF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,18 +15,18 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{4103C486-827D-4DDC-A600-752D8DD3D6E0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4103C486-827D-4DDC-A600-752D8DD3D6E0}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4103C486-827D-4DDC-A600-752D8DD3D6E0}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4103C486-827D-4DDC-A600-752D8DD3D6E0}.Release|Any CPU.Build.0 = Release|Any CPU
 		{47D65BC3-7E88-49A3-8A8A-773410E39F74}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{47D65BC3-7E88-49A3-8A8A-773410E39F74}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{47D65BC3-7E88-49A3-8A8A-773410E39F74}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{47D65BC3-7E88-49A3-8A8A-773410E39F74}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5CEF3764-2977-46C1-B4A1-5A050852E940}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5CEF3764-2977-46C1-B4A1-5A050852E940}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5CEF3764-2977-46C1-B4A1-5A050852E940}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5CEF3764-2977-46C1-B4A1-5A050852E940}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F9323935-EC6F-4146-91AD-EA89B17677E1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F9323935-EC6F-4146-91AD-EA89B17677E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F9323935-EC6F-4146-91AD-EA89B17677E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F9323935-EC6F-4146-91AD-EA89B17677E1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F1469947-57A7-463D-BEF9-EB1F4F5F47BF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F1469947-57A7-463D-BEF9-EB1F4F5F47BF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F1469947-57A7-463D-BEF9-EB1F4F5F47BF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F1469947-57A7-463D-BEF9-EB1F4F5F47BF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
