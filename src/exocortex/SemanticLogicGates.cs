@@ -393,7 +393,7 @@ public class SemanticLogicGates
 
         // Calculate the angle between the input vector and the target vector
         float dotProduct = vector.Zip(targetVector, (a, b) => a * b).Sum();
-        float angleBetween = (float)Math.Acos(Math.Clamp(dotProduct, -1.0, 1.0));
+        float angleBetween = (float)Math.Acos(Clamp(dotProduct, -1.0, 1.0));
 
         // Calculate the step size based on the specified angle
         float stepSize = Math.Min(angleRadians, angleBetween);
@@ -407,5 +407,15 @@ public class SemanticLogicGates
         }
 
         return rotatedVector;
+    }
+
+    private static T Clamp<T>(T val, T min, T max) where T : IComparable<T>
+    {
+        if (val.CompareTo(min) < 0)
+            return min;
+        else if (val.CompareTo(max) > 0)
+            return max;
+        else
+            return val;
     }
 }
