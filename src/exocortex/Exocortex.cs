@@ -12,7 +12,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using OwlCore.Storage.SystemIO;
+using OwlCore.Storage.System.IO;
 using UMAP;
 
 namespace OwlCore.AI.Exocortex;
