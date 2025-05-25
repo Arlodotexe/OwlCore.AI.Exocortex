@@ -3,6 +3,11 @@ using System.Linq;
 
 namespace OwlCore.AI.Exocortex;
 
+/// <summary>
+/// This class provides a set of semantic logic gates that operate on vectors in a semantic space.
+/// These gates include operations like AND, OR, NOT, NAND, NOR, XOR, and XNOR.
+/// They are designed to manipulate and combine semantic vectors in a way that reflects logical operations.
+/// </summary>
 public class SemanticLogicGates
 {
     /// <summary>
