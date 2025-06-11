@@ -1,12 +1,8 @@
-﻿using HdbscanSharp.Distance;
-using HdbscanSharp.Hdbscanstar;
-using HdbscanSharp.Runner;
+﻿using HdbscanSharp.Runner;
 using OwlCore.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Diagnostics;
-using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -14,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using OwlCore.Storage.System.IO;
 using UMAP;
+using System.Runtime.CompilerServices;
 
 namespace OwlCore.AI.Exocortex;
 
@@ -342,8 +339,10 @@ public abstract partial class Exocortex<T>
     /// Adds a new memory to the Exocortex, turning objective experiences into subjective experiences.
     /// </summary>
     /// <param name="newMemoryContent">The content of the new memory.</param>
-    public async IAsyncEnumerable<CortexMemory<T>> AddMemoryAsync(T newMemoryContent)
+    /// <param name="cancellationToken">A token that can be used to cancel the ongoing operation.</param>
+    public async IAsyncEnumerable<CortexMemory<T>> AddMemoryAsync(T newMemoryContent, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // ---------------
         // Core memory
         // ---------------
@@ -357,6 +356,7 @@ public abstract partial class Exocortex<T>
         Memories.Add(newMemory);
         yield return newMemory;
 
+        cancellationToken.ThrowIfCancellationRequested();
         // ---------------
         // Recollection memory
         // ---------------
@@ -375,9 +375,9 @@ public abstract partial class Exocortex<T>
 
         var file = new SystemFile("D:\\source\\dotnet\\core\\LlmPlayground\\OwlCore.AI.Exocortex\\docs\\plotting\\file.json");
 
-        var stream = await file.OpenStreamAsync(FileAccess.Write);
+        var stream = await file.OpenStreamAsync(FileAccess.Write, cancellationToken);
         stream.Seek(0, SeekOrigin.Begin);
-        await stream.WriteAsync(jsonRawBytes, 0, jsonRawBytes.Length);
+        await stream.WriteAsync(jsonRawBytes, 0, jsonRawBytes.Length, cancellationToken);
         stream.SetLength(jsonRawBytes.Length);
 
         stream.Dispose();
@@ -392,6 +392,8 @@ public abstract partial class Exocortex<T>
             var numberOfEpochs = umap.InitializeFit(dataPoints);
             for (var i = 0; i < numberOfEpochs; i++)
                 umap.Step();
+
+            cancellationToken.ThrowIfCancellationRequested();
 
             // Create reduced memories we can cluster.
             var recollectionMemoriesWithReducedDimensions = umap.GetEmbedding().Select((x, i) => new ReducedCortexMemory<T>(x, recollectionMemories[i], PresentDateTime)).ToArray();
@@ -422,10 +424,13 @@ public abstract partial class Exocortex<T>
                 DistanceFunction = new CortexMemoryDistanceSpace<T>(this)
             });
 
+            cancellationToken.ThrowIfCancellationRequested();
             var clusteredMemories = recollectionMemoriesWithReducedDimensions.Zip(clusterResult.Labels, (memory, label) => (Memory: memory, Label: label)).ToList();
 
+            cancellationToken.ThrowIfCancellationRequested();
             foreach (var batchOfClusters in clusterResult.Labels.Distinct().Batch(1))
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var results = await batchOfClusters.InParallel(async cluster =>
                 {
                     // Skip noise points
@@ -447,13 +452,18 @@ public abstract partial class Exocortex<T>
                     var recollectionMemoryEmbedding = await GenerateEmbeddingAsync(recollectionMemory);
                     var memoryOfRecollection = new RecollectionCortexMemory<T>(recollectionMemory, recollectionMemoryEmbedding, clusterMemories, PresentDateTime);
 
+                    cancellationToken.ThrowIfCancellationRequested();
                     Memories.Add(memoryOfRecollection);
                     return memoryOfRecollection;
                 });
 
                 foreach (var item in results)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     if (item is not null)
                         yield return item;
+                }
             }
         }
 
