@@ -66,7 +66,7 @@ Initial release of OwlCore.AI.Exocortex.
 
 	<ItemGroup>
 		<PackageReference Include="HdbscanSharp" Version="2.0.0" />
-		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
+		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.1" />
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
 		<PackageReference Include="OwlCore.Extensions" Version="0.8.0" />
 		<PackageReference Include="OwlCore.Storage" Version="0.11.1" />
@@ -74,7 +74,7 @@ Initial release of OwlCore.AI.Exocortex.
 		  <PrivateAssets>all</PrivateAssets>
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
-		<PackageReference Include="System.Linq.Async" Version="6.0.1" />
+		<PackageReference Include="System.Linq.Async" Version="7.0.0" />
 		<PackageReference Include="System.Runtime.Extensions" Version="4.3.1" />
 	</ItemGroup>
 
