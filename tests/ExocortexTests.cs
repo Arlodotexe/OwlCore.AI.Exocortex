@@ -4,6 +4,8 @@ namespace OwlCore.AI.Exocortex.Tests;
 public class ExocortexTests
 {
     private static readonly DateTime Present = new(2026, 5, 17, 12, 0, 0, DateTimeKind.Utc);
+    private static readonly TimeSpan ScriptShortTermMemoryDuration = TimeSpan.FromMinutes(25);
+    private const double ScriptLongTermDecayThreshold = 0.1;
 
     [TestMethod]
     public void ComputeCosineSimilarityReturnsOneForIdenticalVectors()
@@ -42,7 +44,42 @@ public class ExocortexTests
         var olderWeight = exocortex.ComputeRecencyWeight(Present.AddHours(-48));
 
         Assert.IsTrue(newerWeight > olderWeight, $"Expected newer long-term memory to score above older memory, but got {newerWeight} and {olderWeight}.");
-        Assert.AreEqual(exocortex.LongTermDecayThreshold, olderWeight, 0.0001);
+        Assert.IsTrue(olderWeight >= exocortex.LongTermDecayThreshold, $"Expected older memory to stay at or above the long-term threshold, but got {olderWeight}.");
+    }
+
+    [TestMethod]
+    public void ShortTermDecayThresholdMatchesMemoryChartScript()
+    {
+        foreach (var stageDuration in MemoryChartScriptStageDurations())
+        {
+            var exocortex = CreateScriptModelExocortex(stageDuration);
+            var expected = ComputeMemoryChartScriptShortTermDecayThreshold(stageDuration);
+
+            Assert.AreEqual(expected, exocortex.ShortTermDecayThreshold, 0.00001, $"Stage duration: {stageDuration}");
+        }
+    }
+
+    [TestMethod]
+    public void ComputeRecencyWeightMatchesMemoryChartScript()
+    {
+        foreach (var stageDuration in MemoryChartScriptStageDurations())
+        {
+            var exocortex = CreateScriptModelExocortex(stageDuration);
+            var sampleAges = new[]
+            {
+                ScriptShortTermMemoryDuration.TotalHours,
+                stageDuration / 2,
+                stageDuration,
+            };
+
+            foreach (var sampleAge in sampleAges)
+            {
+                var expected = ComputeMemoryChartScriptStrength(sampleAge, stageDuration);
+                var actual = exocortex.ComputeRecencyWeight(Present.AddHours(-sampleAge));
+
+                Assert.AreEqual(expected, actual, 0.00001, $"Stage duration: {stageDuration}; sample age: {sampleAge}");
+            }
+        }
     }
 
     [TestMethod]
@@ -123,6 +160,50 @@ public class ExocortexTests
         return results;
     }
 
+
+    private static TestExocortex CreateScriptModelExocortex(double longTermDurationHours)
+    {
+        var exocortex = new TestExocortex
+        {
+            CustomPresentDateTime = Present,
+            ShortTermMemoryDuration = ScriptShortTermMemoryDuration,
+            LongTermDecayThreshold = (float)ScriptLongTermDecayThreshold,
+        };
+
+        exocortex.Memories.Add(new CortexMemory<string>("oldest", TestExocortex.EmbeddingFor("alpha"), Present.AddHours(-longTermDurationHours)) { Type = CortexMemoryType.Core });
+        return exocortex;
+    }
+
+    private static double[] MemoryChartScriptStageDurations()
+    {
+        return
+        [
+            5 * 365 * 24,
+            (18 - 5) * 365 * 24,
+            (30 - 18) * 365 * 24,
+            40 * 365 * 24,
+            70 * 365 * 24,
+        ];
+    }
+
+    private static double ComputeMemoryChartScriptStrength(double ageHours, double longTermDurationHours)
+    {
+        var shortTermDecayThreshold = ComputeMemoryChartScriptShortTermDecayThreshold(longTermDurationHours);
+        var shortTermDecayRate = -Math.Log(shortTermDecayThreshold) / ScriptShortTermMemoryDuration.TotalHours;
+
+        if (ageHours <= ScriptShortTermMemoryDuration.TotalHours)
+            return Math.Exp(-shortTermDecayRate * ageHours);
+
+        var longTermDecayRate = (shortTermDecayThreshold - ScriptLongTermDecayThreshold) / Math.Log(longTermDurationHours);
+        var adjustedAge = ageHours - ScriptShortTermMemoryDuration.TotalHours;
+        var longTermWeight = shortTermDecayThreshold - (longTermDecayRate * Math.Log(adjustedAge + 1));
+        return Math.Max(ScriptLongTermDecayThreshold, longTermWeight);
+    }
+
+    private static double ComputeMemoryChartScriptShortTermDecayThreshold(double longTermDurationHours)
+    {
+        return 0.2 + (0.8 * Math.Exp(-0.00001 * longTermDurationHours));
+    }
     private sealed class TestExocortex : Exocortex<string>
     {
         public List<CancellationToken> EmbeddingTokens { get; } = [];

@@ -68,20 +68,8 @@ public abstract partial class Exocortex<T>
     {
         get
         {
-            // Maximum possible value for the short-term decay threshold. 
-            float T_max = 1 - LongTermDecayThreshold;
-
-            // Minimum possible value for the short-term decay threshold, 
-            float T_min = LongTermDecayThreshold;
-
-            // Duration of the oldest long-term memory in hours.
-            float D_lt = (float)LongTermMemoryDuration.TotalHours;
-
-            // Calculate the ShortTermDecayThreshold using an exponential decay formula.
-            // The result is designed to be between T_min and T_max based on the duration 
-            // of the oldest long-term memory. The longer this duration, the closer the 
-            // threshold will be to T_min.
-            return T_min + T_max * (float)Math.Exp(-0.00001 * D_lt);
+            var longTermDurationHours = LongTermMemoryDuration.TotalHours;
+            return 0.2f + (0.8f * (float)Math.Exp(-0.00001 * longTermDurationHours));
         }
     }
 
@@ -114,7 +102,7 @@ public abstract partial class Exocortex<T>
     }
 
     /// <summary>
-    /// A weight between 0 and 1 used for the raw memory content provided to <see cref="AddMemoryAsync(T)"/>.
+    /// A weight between 0 and 1 used for raw memory content added with <see cref="AddMemoryAsync"/>.
     /// </summary>
     public double CoreMemoryWeight { get; set; } = 1;
 
@@ -277,19 +265,19 @@ public abstract partial class Exocortex<T>
         else
         {
             // Reversed Logarithmic decay for long-term memory
-            var maxLifetime = Math.Max(LongTermMemoryDuration.TotalHours, currentTime);
-            if (maxLifetime <= shortTermMemoryHours)
+            var longTermDurationHours = Math.Max(LongTermMemoryDuration.TotalHours, currentTime);
+            if (longTermDurationHours <= 1)
                 return LongTermDecayThreshold;
 
-            var longTermDuration = maxLifetime - shortTermMemoryHours;
-            var longTermAge = currentTime - shortTermMemoryHours;
-            var longTermProgress = longTermAge / longTermDuration;
-            longTermProgress = Math.Max(0, Math.Min(1, longTermProgress));
+            var shortTermDecayThreshold = ShortTermDecayThreshold;
+            var longTermDecayRate = (shortTermDecayThreshold - LongTermDecayThreshold) / Math.Log(longTermDurationHours);
+            var adjustedAge = currentTime - shortTermMemoryHours;
+            double finalWeight = shortTermDecayThreshold - (longTermDecayRate * Math.Log(adjustedAge + 1));
 
-            var logarithmicProgress = Math.Log(1 + (longTermProgress * (Math.E - 1)));
-            double finalWeight = ShortTermDecayThreshold + ((LongTermDecayThreshold - ShortTermDecayThreshold) * logarithmicProgress);
+            if (finalWeight < LongTermDecayThreshold)
+                finalWeight = LongTermDecayThreshold;
 
-            if (finalWeight > 1 || finalWeight < 0)
+            if (double.IsNaN(finalWeight) || finalWeight > 1 || finalWeight < 0)
                 throw new ArgumentOutOfRangeException(nameof(finalWeight), "Memory weight out of range.");
 
             return finalWeight;
