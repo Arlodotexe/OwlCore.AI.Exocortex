@@ -44,57 +44,54 @@ public class ApplicationModelTests
     }
 
     [TestMethod]
+    public void CortexMemoryAppModelWrapsDataModel()
+    {
+        var data = CreateCoreData();
+        var appModel = new CortexMemoryAppModel<string>(data);
+
+        Assert.AreSame(data, appModel.Data);
+        Assert.AreEqual(data.Id, appModel.Id);
+        Assert.AreEqual(data.Type, appModel.Type);
+        Assert.AreEqual(data.Content, appModel.Content);
+        Assert.AreEqual(data.CreationTimestamp, appModel.CreationTimestamp);
+        CollectionAssert.AreEqual(data.EmbeddingVectors, appModel.EmbeddingVectors.ToArray());
+    }
+
+    [TestMethod]
     public async Task RecollectionAppModelResolvesReferencesThroughApplicationBoundary()
     {
-        var coreMemory = new CortexMemoryAppModel<string>("core-1", CortexMemoryType.Core, "core memory", [1f, 0f, 0f], Present);
+        var coreMemory = new CortexMemoryAppModel<string>(CreateCoreData());
         var memoriesById = new Dictionary<string, ICortexMemory<string>>
         {
             [coreMemory.Id] = coreMemory,
         };
 
+        var recollectionData = CreateRecollectionData(coreMemory.Id);
         var recollection = new RecollectionCortexMemoryAppModel<string>(
-            "recollection-1",
-            "recalled memory",
-            [0f, 1f, 0f],
-            Present.AddMinutes(1),
-            [coreMemory.Id],
+            recollectionData,
             (memoryId, _) => Task.FromResult(memoriesById.TryGetValue(memoryId, out var memory) ? memory : null));
 
         var recalled = new List<ICortexMemory<string>>();
         await foreach (var memory in recollection.GetRecalledMemoriesAsync())
             recalled.Add(memory);
 
+        Assert.AreSame(recollectionData, recollection.Data);
+        Assert.AreEqual(coreMemory.Id, recollection.RecalledMemoryIds.Single());
         Assert.AreEqual(1, recalled.Count);
         Assert.AreSame(coreMemory, recalled[0]);
     }
 
     [TestMethod]
-    public async Task RecollectionAppModelMapsToDataWithReferencedMemoryIds()
+    public void RecollectionAppModelRequiresRecollectionData()
     {
-        var coreMemory = new CortexMemoryAppModel<string>("core-1", CortexMemoryType.Core, "core memory", [1f, 0f, 0f], Present);
-        var memoriesById = new Dictionary<string, ICortexMemory<string>>
-        {
-            [coreMemory.Id] = coreMemory,
-        };
-        var recollection = new RecollectionCortexMemoryAppModel<string>(
-            "recollection-1",
-            "recalled memory",
-            [0f, 1f, 0f],
-            Present.AddMinutes(1),
-            [coreMemory.Id],
-            (memoryId, _) => Task.FromResult(memoriesById.TryGetValue(memoryId, out var memory) ? memory : null));
+        var data = CreateCoreData();
 
-        var data = await CortexMemoryDataMapper.ToDataAsync(recollection);
-
-        Assert.AreEqual("recollection-1", data.Id);
-        Assert.AreEqual(CortexMemoryType.Recollection, data.Type);
-        Assert.AreEqual("core-1", data.RecalledMemoryIds.Single());
+        Assert.ThrowsException<ArgumentException>(() => new RecollectionCortexMemoryAppModel<string>(data, (_, _) => Task.FromResult<ICortexMemory<string>?>(null)));
     }
 
-    [TestMethod]
-    public void DataMapperHydratesConcreteRecollectionForExistingEngine()
+    private static CortexMemoryData<string> CreateCoreData()
     {
-        var coreData = new CortexMemoryData<string>
+        return new CortexMemoryData<string>
         {
             Id = "core-1",
             Type = CortexMemoryType.Core,
@@ -102,25 +99,18 @@ public class ApplicationModelTests
             CreationTimestamp = Present,
             EmbeddingVectors = [1f, 0f, 0f],
         };
-        var coreMemory = CortexMemoryDataMapper.ToCortexMemory(coreData);
-        var memoriesById = new Dictionary<string, CortexMemory<string>>
-        {
-            [coreData.Id] = coreMemory,
-        };
-        var recollectionData = new CortexMemoryData<string>
+    }
+
+    private static CortexMemoryData<string> CreateRecollectionData(string recalledMemoryId)
+    {
+        return new CortexMemoryData<string>
         {
             Id = "recollection-1",
             Type = CortexMemoryType.Recollection,
             Content = "recalled memory",
             CreationTimestamp = Present.AddMinutes(1),
             EmbeddingVectors = [0f, 1f, 0f],
-            RecalledMemoryIds = [coreData.Id],
+            RecalledMemoryIds = [recalledMemoryId],
         };
-
-        var memory = CortexMemoryDataMapper.ToCortexMemory(recollectionData, memoriesById);
-
-        var recollection = memory as RecollectionCortexMemory<string>;
-        Assert.IsNotNull(recollection);
-        Assert.AreSame(coreMemory, recollection.RecalledMemories.Single());
     }
 }

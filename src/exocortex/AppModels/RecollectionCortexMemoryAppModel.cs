@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using OwlCore.AI.Exocortex.DataModels;
 
 namespace OwlCore.AI.Exocortex.AppModels;
 
@@ -17,24 +18,24 @@ public class RecollectionCortexMemoryAppModel<T> : CortexMemoryAppModel<T>, IRec
     /// <summary>
     /// Creates a new instance of <see cref="RecollectionCortexMemoryAppModel{T}"/>.
     /// </summary>
-    public RecollectionCortexMemoryAppModel(string id, T content, IEnumerable<float> embeddingVectors, DateTime creationTimestamp, IReadOnlyList<string> recalledMemoryIds, Func<string, CancellationToken, Task<ICortexMemory<T>?>> resolveMemoryAsync)
-        : base(id, CortexMemoryType.Recollection, content, embeddingVectors, creationTimestamp)
+    public RecollectionCortexMemoryAppModel(CortexMemoryData<T> data, Func<string, CancellationToken, Task<ICortexMemory<T>?>> resolveMemoryAsync)
+        : base(data)
     {
-        if (recalledMemoryIds is null)
-            throw new ArgumentNullException(nameof(recalledMemoryIds));
-        if (resolveMemoryAsync is null)
-            throw new ArgumentNullException(nameof(resolveMemoryAsync));
+        if (data.Type != CortexMemoryType.Recollection)
+            throw new ArgumentException("Recollection app models require recollection data.", nameof(data));
 
-        RecalledMemoryIds = System.Linq.Enumerable.ToArray(recalledMemoryIds);
-        _resolveMemoryAsync = resolveMemoryAsync;
+        _resolveMemoryAsync = resolveMemoryAsync ?? throw new ArgumentNullException(nameof(resolveMemoryAsync));
     }
 
-    internal IReadOnlyList<string> RecalledMemoryIds { get; }
+    /// <summary>
+    /// Gets memory ids recalled to create this memory.
+    /// </summary>
+    public IReadOnlyList<string> RecalledMemoryIds => Data.RecalledMemoryIds;
 
     /// <inheritdoc/>
     public async IAsyncEnumerable<ICortexMemory<T>> GetRecalledMemoriesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        foreach (var recalledMemoryId in RecalledMemoryIds)
+        foreach (var recalledMemoryId in Data.RecalledMemoryIds)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var memory = await _resolveMemoryAsync(recalledMemoryId, cancellationToken).ConfigureAwait(false);
