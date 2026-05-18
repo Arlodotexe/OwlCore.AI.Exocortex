@@ -219,15 +219,31 @@ public abstract partial class Exocortex<T>
     /// </summary>
     public static float ComputeCosineSimilarity(float[] vector1, float[] vector2)
     {
+        if (vector1.Length == 0 || vector2.Length == 0)
+            throw new ArgumentException("Vectors must not be empty.");
+
+        if (vector1.Length != vector2.Length)
+            throw new ArgumentException("Vectors must have the same dimension.");
+
         var dotProduct = vector1.Zip(vector2, (a, b) => a * b).Sum();
         var magnitude1 = Math.Sqrt(vector1.Sum(a => a * a));
         var magnitude2 = Math.Sqrt(vector2.Sum(b => b * b));
+
+        if (magnitude1 == 0 || magnitude2 == 0)
+            throw new ArgumentException("Vectors must have non-zero magnitude.");
+
         var cosineSimilarity = dotProduct / (magnitude1 * magnitude2);
 
         // Normalize to [0, 1]
         var finalWeight = (1 + cosineSimilarity) / 2f;
-        if (finalWeight > 1.0001 || finalWeight < 0)
+        if (double.IsNaN(finalWeight) || finalWeight > 1.0001 || finalWeight < -0.0001)
             throw new ArgumentOutOfRangeException(nameof(finalWeight), "Memory weight out of range.");
+
+        if (finalWeight > 1)
+            finalWeight = 1;
+
+        if (finalWeight < 0)
+            finalWeight = 0;
 
         return (float)finalWeight;
     }
@@ -239,18 +255,19 @@ public abstract partial class Exocortex<T>
     /// <returns>The recency score ranging from 0 (completely forgotten) to 1 (fully remembered).</returns>
     public double ComputeRecencyWeight(DateTime creationTimestamp)
     {
-        var maxLifetime = LongTermMemoryDuration.TotalHours;
-        double baseE = Math.E;
+        var shortTermMemoryHours = ShortTermMemoryDuration.TotalHours;
+        if (shortTermMemoryHours <= 0)
+            throw new InvalidOperationException($"{nameof(ShortTermMemoryDuration)} must be greater than zero.");
 
         // Computes the recency score of a memory based on its creation timestamp 
         // using either the exponential decay model (short-term memory) or the 
         // reversed logarithmic decay model (long-term memory).
-        double currentTime = (PresentDateTime - creationTimestamp).TotalHours;
+        double currentTime = Math.Max(0, (PresentDateTime - creationTimestamp).TotalHours);
 
-        if (currentTime <= ShortTermMemoryDuration.TotalHours)
+        if (currentTime <= shortTermMemoryHours)
         {
             // Exponential decay for short-term memory
-            var shortTermDecayRate = -Math.Log(ShortTermDecayThreshold) / ShortTermMemoryDuration.TotalHours;
+            var shortTermDecayRate = -Math.Log(ShortTermDecayThreshold) / shortTermMemoryHours;
             var finalWeight = Math.Exp(-shortTermDecayRate * currentTime);
             if (finalWeight > 1 || finalWeight < 0)
                 throw new ArgumentOutOfRangeException(nameof(finalWeight), "Memory weight out of range.");
@@ -260,11 +277,17 @@ public abstract partial class Exocortex<T>
         else
         {
             // Reversed Logarithmic decay for long-term memory
-            double a = LongTermDecayThreshold;
-            double b = (maxLifetime - LongTermMemoryDuration.TotalHours) * (-Math.Log(baseE) / Math.Log(maxLifetime));
+            var maxLifetime = Math.Max(LongTermMemoryDuration.TotalHours, currentTime);
+            if (maxLifetime <= shortTermMemoryHours)
+                return LongTermDecayThreshold;
 
-            var remainingLifetime = currentTime - maxLifetime;
-            double finalWeight = a * Math.Pow(baseE, -b * remainingLifetime / maxLifetime);
+            var longTermDuration = maxLifetime - shortTermMemoryHours;
+            var longTermAge = currentTime - shortTermMemoryHours;
+            var longTermProgress = longTermAge / longTermDuration;
+            longTermProgress = Math.Max(0, Math.Min(1, longTermProgress));
+
+            var logarithmicProgress = Math.Log(1 + (longTermProgress * (Math.E - 1)));
+            double finalWeight = ShortTermDecayThreshold + ((LongTermDecayThreshold - ShortTermDecayThreshold) * logarithmicProgress);
 
             if (finalWeight > 1 || finalWeight < 0)
                 throw new ArgumentOutOfRangeException(nameof(finalWeight), "Memory weight out of range.");
@@ -299,41 +322,20 @@ public abstract partial class Exocortex<T>
         var relevance = ComputeCosineSimilarity(memory.EmbeddingVectors, queryEmbedding);
         var recency = (float)ComputeRecencyWeight(memory.CreationTimestamp);
 
-        // Relevance-based nostalgia is used to counter the weight of older memories that are still relevant.
-        // The intersection point of recency and nostalgia curves.
-        // This is a constant since the nostalgia curve is the inverse of the recency curve after a certain point.
-        const float intersectionPoint = 0.5f;
+        var nostalgiaWeight = 1 - recency;
+        var finalWeight = ((relevance * nostalgiaWeight) + recency) * typeWeight;
 
-        // Inverse of recency, starting at the intersection point with the recency curve.
-        // No nostalgia boost is used on memories where it would reduce relevance (before the intersection point).
-        // A slight boost to the end of short-term memory will develop after about a decade. Feature or bug? Adds attention to the end of the rolling context, may be good to keep.
-        float? nostalgia = recency <= intersectionPoint ? (recency - 1.00001f) + 1 : null;
-
-        // Merge these values as if they operate on the same one-dimensional axis (using addition)
-        // Creates a symmetrical 1-dimensional value that cleanly represents 2 dimensions (via logical OR operation / addition).
-        var relativeSumNostalgia = (nostalgia ?? 0) + relevance;
-
-        // Merge these values as if they're being crossed on two orthogonal one-dimensional axis (using multiplication).
-        // Creates a symmetrical 1-dimensional value that cleanly represents 2 dimensions (via logical AND operation / multiplication).
-        var relativeCrossNostalgia = (nostalgia ?? -1.00001f) * relevance;
-
-        // This is the remainder of the differences between 2 one-dimensional values with external symmetry (effectively, two 2-dimensional values with internal symmetry)
-        // we can combine these and reduce by 1 dimension using the Pythagorean theorem
-        var relativeNostalgia = Math.Sqrt(relativeSumNostalgia + relativeCrossNostalgia);
-
-        var finalWeight = relativeNostalgia * typeWeight;
-
-        MemoryJson.Add($"{{ {nameof(nostalgia)}: {nostalgia?.ToString() ?? "null"}, {nameof(relevance)}: {relevance}, {nameof(recency)}: {recency}, unix_timestamp: {((DateTimeOffset)memory.CreationTimestamp).ToUnixTimeMilliseconds()}, {nameof(finalWeight)}: {finalWeight} }},");
-
-        // Using 4 as the limiter since 4 dimensions will naturally collapse back to 2 when reduced, and our operations are purely 2-dimensional.
-        // We should never be able to exceed a value of 4.
-        if (finalWeight > 4 || finalWeight < 0)
+        if (double.IsNaN(finalWeight) || finalWeight > 1.0001 || finalWeight < -0.0001)
             throw new ArgumentOutOfRangeException(nameof(finalWeight), "Memory weight out of range.");
+
+        if (finalWeight > 1)
+            finalWeight = 1;
+
+        if (finalWeight < 0)
+            finalWeight = 0;
 
         return finalWeight;
     }
-
-    private List<string> MemoryJson = new List<string>();
 
     /// <summary>
     /// Adds a new memory to the Exocortex, turning objective experiences into subjective experiences.
@@ -347,7 +349,7 @@ public abstract partial class Exocortex<T>
         // Core memory
         // ---------------
         // Recall memories related to this new content
-        var rawMemoryEmbedding = await GenerateEmbeddingAsync(newMemoryContent);
+        var rawMemoryEmbedding = await GenerateEmbeddingAsync(newMemoryContent, cancellationToken);
         var newMemory = new CortexMemory<T>(newMemoryContent, rawMemoryEmbedding, PresentDateTime)
         {
             Type = CortexMemoryType.Core,
@@ -368,19 +370,6 @@ public abstract partial class Exocortex<T>
                 .Select(g => g.First())
             //.Where(x => x.Score >= WorkingRecollectionMemoryWeightThreshold)
             .ToList();
-
-        var jsonInner = MemoryJson.Aggregate((x, y) => $"{x}{Environment.NewLine}{y}").TrimEnd(',');
-        var json = $"[ {Environment.NewLine} {jsonInner} {Environment.NewLine} ]";
-        var jsonRawBytes = Encoding.UTF8.GetBytes(json);
-
-        var file = new SystemFile("D:\\source\\dotnet\\core\\LlmPlayground\\OwlCore.AI.Exocortex\\docs\\plotting\\file.json");
-
-        var stream = await file.OpenStreamAsync(FileAccess.Write, cancellationToken);
-        stream.Seek(0, SeekOrigin.Begin);
-        await stream.WriteAsync(jsonRawBytes, 0, jsonRawBytes.Length, cancellationToken);
-        stream.SetLength(jsonRawBytes.Length);
-
-        stream.Dispose();
 
         if (recollectionMemories.Count > NumberOfDimensions) // Number of dimensions roughly determines number of clusters and their sizes. We need enough memories to do clustering.
         {
@@ -448,8 +437,8 @@ public abstract partial class Exocortex<T>
                     if (clusterMemories.Count < 2)
                         return null;
 
-                    var recollectionMemory = await SummarizeMemoryInNewContext(newMemory, clusterMemories.OrderBy(x => x.CreationTimestamp));
-                    var recollectionMemoryEmbedding = await GenerateEmbeddingAsync(recollectionMemory);
+                    var recollectionMemory = await SummarizeMemoryInNewContext(newMemory, clusterMemories.OrderBy(x => x.CreationTimestamp), cancellationToken);
+                    var recollectionMemoryEmbedding = await GenerateEmbeddingAsync(recollectionMemory, cancellationToken);
                     var memoryOfRecollection = new RecollectionCortexMemory<T>(recollectionMemory, recollectionMemoryEmbedding, clusterMemories, PresentDateTime);
 
                     cancellationToken.ThrowIfCancellationRequested();
@@ -477,7 +466,7 @@ public abstract partial class Exocortex<T>
         // By iterating ShortTermMemories but comparing to all memories, it effectively replaces new memories with an older one when the computed memory weight (recency, relevancy, nostalgia, etc) is higher than the original.
         // For the final reaction, we take `MaxRelatedReactionMemories` of the most recent memories, and starting with memories means they could be included regardless of their weights, if they're newer than the found memories.
         var reactionMemories = ShortTermMemories
-            .SelectMany(stMem => ActiveMemories.Select(ltMem => new WorkingCortexMemory<T>(stMem, ComputeFullMemoryWeight(ltMem, stMem.EmbeddingVectors))))
+            .SelectMany(stMem => ActiveMemories.Select(ltMem => new WorkingCortexMemory<T>(ltMem, ComputeFullMemoryWeight(ltMem, stMem.EmbeddingVectors))))
             .Where(x => x.Score >= WorkingReactionMemoryWeightThreshold)
             .OrderBy(x => x.CreationTimestamp)
                 .GroupBy(x => x.WeighedMemory) // DistinctBy
@@ -493,9 +482,9 @@ public abstract partial class Exocortex<T>
         // - Reconsider how clustering fits into the picture. We need clustering in order to create that rolling context
         //   But perhaps it would be better suited as a way to consolidate down all the possible memories into just a few?
         //   It would still have the same effect, and could still be labeled as "recollection".
-        var reaction = await ReactToMemoryAsync(newMemory, reactionMemories.OrderBy(x => x.CreationTimestamp));
+        var reaction = await ReactToMemoryAsync(newMemory, reactionMemories.OrderBy(x => x.CreationTimestamp), cancellationToken);
 
-        var reactionEmbedding = await GenerateEmbeddingAsync(reaction);
+        var reactionEmbedding = await GenerateEmbeddingAsync(reaction, cancellationToken);
 
         var reactionMemory = new CortexMemory<T>(reaction, reactionEmbedding, PresentDateTime)
         {

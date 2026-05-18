@@ -9,8 +9,6 @@ namespace OwlCore.AI.Exocortex;
 /// <typeparam name="T">The raw memory type.</typeparam>
 public struct CortexMemoryDistanceSpace<T> : IDistanceCalculator<CortexMemory<T>>
 {
-    private readonly Exocortex<T> _exocortex;
-
     /// <summary>
     /// Creates a new instance of <see cref="CortexMemoryDistanceSpace{T}"/>.
     /// </summary>
@@ -18,9 +16,8 @@ public struct CortexMemoryDistanceSpace<T> : IDistanceCalculator<CortexMemory<T>
     public CortexMemoryDistanceSpace(Exocortex<T> exocortex)
     {
         Guard.IsNotNull(exocortex);
-        _exocortex = exocortex;
     }
 
     /// <inheritdoc/>
-    public double ComputeDistance(int indexOne, int indexTwo, CortexMemory<T> attributesOne, CortexMemory<T> attributesTwo) => _exocortex.ComputeFullMemoryWeight(attributesOne, attributesTwo.EmbeddingVectors);
+    public double ComputeDistance(int indexOne, int indexTwo, CortexMemory<T> attributesOne, CortexMemory<T> attributesTwo) => 1 - Exocortex<T>.ComputeCosineSimilarity(attributesOne.EmbeddingVectors, attributesTwo.EmbeddingVectors);
 }
